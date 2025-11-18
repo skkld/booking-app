@@ -7,55 +7,65 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { targetUserId, adminEmail, adminPassword } = await req.json();
+    
+    console.log(`Attempting to delete user: ${targetUserId}`);
 
-    // 1. Create the Admin Client (Service Role)
+    // 1. Create the Supabase Admin Client
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 2. Verify the Admin's Password
-    // We try to sign in just to check if the password is valid.
+    // 2. Verify the Admin's Identity
+    // We attempt to sign in with the provided credentials to prove they are an admin.
     const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
       email: adminEmail,
       password: adminPassword
     });
 
     if (signInError) {
-      console.error("Sign in error:", signInError);
-      throw new Error("Admin password verification failed. Please try again.");
+      console.error("Admin password verification failed:", signInError.message);
+      throw new Error("Admin password verification failed. Please check your password.");
     }
 
-    // 3. Delete the User from Authentication
+    console.log("Admin verified. Proceeding with deletion...");
+
+    // 3. Delete the User from the Auth System (The Login)
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId);
     
     if (deleteAuthError) {
-      console.error("Auth delete error:", deleteAuthError);
+      console.error("Failed to delete auth user:", deleteAuthError.message);
       throw deleteAuthError;
     }
 
-    // 4. Delete the Employee Profile (Database)
+    // 4. Delete the User from the Employees Table (The Profile)
+    // Note: This might happen automatically if you set up "Cascade Delete" in SQL, 
+    // but doing it manually here ensures it's gone.
     const { error: deleteProfileError } = await supabaseAdmin
       .from('employees')
       .delete()
       .eq('user_id', targetUserId);
 
     if (deleteProfileError) {
-       console.error("Profile delete error:", deleteProfileError);
-       // We don't throw here because the Auth user is already gone, which is the important part.
+       console.error("Failed to delete employee profile:", deleteProfileError.message);
+       // We don't throw here because the login is already gone, which is the most important part.
     }
+
+    console.log("User deleted successfully.");
 
     return new Response(JSON.stringify({ message: "User deleted successfully" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
+    console.error("Function Error:", err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
