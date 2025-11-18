@@ -44,6 +44,9 @@ serve(async (req) => {
     if (profileError) throw profileError;
 
     // 3. Send the Invite Email via SendGrid
+    // MAKE SURE THIS URL IS YOUR EXACT VERCEL DOMAIN
+    const loginUrl = "https://booking-app-skkld.vercel.app/login.html"; 
+
     const emailHtml = `
       <div style="font-family: sans-serif; color: #333;">
         <h2>Welcome to the Booking App</h2>
@@ -54,7 +57,7 @@ serve(async (req) => {
           <li><strong>Temporary Password:</strong> ${password}</li>
         </ul>
         <p>Please log in and change your password as soon as possible.</p>
-        <a href="https://booking-app.vercel.app" 
+        <a href="${loginUrl}" 
            style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
            Log In Now
         </a>
@@ -69,10 +72,13 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: email }] }],
-        // **FIXED: Added quotes around the email address**
         from: { email: "skkld@skkld.com", name: "Booking App Admin" }, 
         subject: "You have been invited to the Booking App",
         content: [{ type: 'text/html', value: emailHtml }],
+        // **FIX: Disable click tracking to prevent broken links**
+        tracking_settings: {
+            click_tracking: { enable: false }
+        }
       }),
     });
 
