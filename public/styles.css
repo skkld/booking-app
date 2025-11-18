@@ -687,4 +687,86 @@ body {
         margin: 10px;
     }
 }
+/* --- MOBILE CONTENT FIXES --- */
+
+@media (max-width: 768px) {
+    
+    /* 1. Fix Header Buttons (Projects, etc.) */
+    /* Stacks buttons vertically so they don't squish */
+    .header {
+        flex-direction: column;
+        align-items: stretch; /* Stretch to fill width */
+        gap: 1rem;
+    }
+
+    .header-actions {
+        display: flex;
+        flex-direction: column; /* Stack buttons top to bottom */
+        width: 100%;
+        gap: 0.75rem;
+        margin-left: 0;
+    }
+
+    .header-actions .btn, 
+    .header-actions a.btn {
+        width: 100%;         /* Full width buttons for easy tapping */
+        text-align: center;
+        box-sizing: border-box;
+        margin: 0 !important; /* Override inline margins */
+    }
+
+    /* 2. Fix Calendar (Scheduling) */
+    /* Transforms 7-column grid into a vertical list for readability */
+    .calendar-grid {
+        display: block;      /* Remove grid layout */
+        border: none;        /* Remove outer border */
+        background: transparent;
+    }
+
+    .day-header {
+        display: none;       /* Hide "Mon, Tue, Wed" headers */
+    }
+
+    .calendar-days {
+        display: flex;       /* Switch to flex column */
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .day-cell {
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background-color: var(--bg-white);
+        min-height: auto;    /* Allow height to fit content */
+        padding: 1rem;
+    }
+
+    /* Hide empty days from previous/next months to save space */
+    .day-cell.other-month {
+        display: none;
+    }
+
+    .day-number {
+        font-size: 1.1rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        color: var(--primary-color);
+    }
+
+    /* 3. Fix Table Actions (Mark as Complete, etc.) */
+    /* Stack buttons inside table rows if they are too wide */
+    td .btn {
+        display: block;
+        width: 100%;
+        margin-bottom: 0.5rem;
+        text-align: center;
+        margin-left: 0 !important;
+    }
+    
+    /* Ensure the table container scrolls smoothly */
+    .table-container {
+        box-shadow: inset -10px 0 10px -10px rgba(0,0,0,0.1); /* Visual cue for scrolling */
+    }
+}
 }
