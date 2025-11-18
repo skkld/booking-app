@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Sheet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        /* Styles specific to the printable sheet */
+        body { background-color: white; color: black; }
+        .main-content { margin-left: 0; padding: 2rem; }
+        .call-sheet-header { border-bottom: 2px solid black; padding-bottom: 1rem; margin-bottom: 1rem; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+        .info-grid strong { display: block; }
+        .print-btn { position: fixed; top: 1rem; right: 1rem; }
+        @media print {
+            .print-btn { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <main class="main-content">
+        <button onclick="window.print()" class="btn btn-primary print-btn">Print</button>
+
+        <div class="call-sheet-header">
+            <h1 id="project-name">Loading...</h1>
+            <h3 id="shift-name-role"></h3>
+            <h4 id="shift-time"></h4>
+        </div>
+
+        <div class="info-grid">
+            <div><strong>Venue:</strong> <span id="venue-address"></span></div>
+            <div><strong>On-site Contact:</strong> <span id="on-site-contact"></span></div>
+            <div><strong>Dress Code:</strong> <span id="dress-code"></span></div>
+            <div><strong>Parking:</strong> <span id="parking-instructions"></span></div>
+            <div style="grid-column: 1 / -1;"><strong>Notes:</strong> <span id="project-notes"></span></div>
+        </div>
+
+        <h2>Assigned Crew</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Role</th><th>Phone</th>
+                    <th>Assignment Notes</th>
+                </tr>
+            </thead>
+            <tbody id="crew-list-table">
+                </tbody>
+        </table>
+    </main>
+    <script type="module" src="/call-sheet.js"></script>
+</main> <script type="module" src="/logout.js"></script>
+    
+    <script type="module" src="/dashboard.js"></script>
+</body>
+</html>

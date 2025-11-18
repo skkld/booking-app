@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Timecards</title>
+    <script type="module" src="/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+ <nav class="sidebar">
+    <div class="sidebar-header">
+        <img src="/assets/logo.png" alt="Booking App Logo" class="logo-img">
+        <span>Employee Portal</span>
+    </div>
+    <ul class="sidebar-nav">
+        <li class="nav-item"><a href="/my-timecards.html" class="nav-link active">My Shifts</a></li>
+        <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
+    </ul>
+</nav>
+
+    <main class="main-content">
+        <header class="header">
+            <h1>My Upcoming Shifts</h1>
+        </header>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Shifts to Clock In</h3>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Project/Shift</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shifts-list-container">
+                        <tr><td colspan="4">Loading your shifts...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+    <script type="module" src="/logout.js"></script>
+    <script type="module" src="/my-timecards.js"></script>
+</body>
+</html>

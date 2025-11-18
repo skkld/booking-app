@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Projects</title>
+    
+    <script type="module" src="/auth.js"></script>
+    
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <img src="/assets/logo.png" alt="Booking App Logo" class="logo-img">
+            <span>Booking App</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
+            <li class="nav-item"><a href="/projects.html" class="nav-link active">Projects</a></li>
+            <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
+            <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
+            <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
+            <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <h1>All Projects</h1>
+            <div class="header-actions">
+                <a href="/projects.html?status=active" id="active-projects-btn" class="btn btn-primary">Active Projects</a>
+                <a href="/projects.html?status=completed" id="completed-projects-btn" class="btn btn-secondary">Completed Projects</a>
+                <a href="/create-project.html" class="btn btn-secondary" style="margin-left: 1rem;">+ Create Project</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Client</th>
+                            <th>Dates</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-list-table">
+                        <tr><td colspan="5">Loading projects...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+    
+    <script type="module" src="/logout.js"></script>
+    <script type="module" src="/projects.js"></script>
+</body>
+</html>

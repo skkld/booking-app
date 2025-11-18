@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-M">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Timesheets</title>
+    <style>
+        /* CSS styles - Reusing styles from the dashboard for consistency */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #e9ecef;
+            --text-color: #212529;
+            --text-light: #6c757d;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* --- Sidebar Navigation (Employee Version) --- */
+        .sidebar {
+            width: 240px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: fixed;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 1rem 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin: 0 1rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: var(--text-color);
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        
+        .nav-link .icon {
+            margin-right: 0.75rem;
+            width: 20px;
+            font-size: 1.1rem;
+        }
+
+        .nav-link.active,
+        .nav-link:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 0.75rem;
+        }
+
+        .user-info {
+            font-size: 0.9rem;
+        }
+
+        .user-info strong {
+            display: block;
+        }
+        
+        .user-info span {
+            color: var(--text-light);
+        }
+
+        /* --- Main Content Area --- */
+        .main-content {
+            margin-left: 240px; /* Same as sidebar width */
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            overflow: hidden; /* Important for table border radius */
+        }
+        
+        /* --- Timesheet Table --- */
+        .timesheet-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .timesheet-table th, .timesheet-table td {
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .timesheet-table thead th {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-light);
+            background-color: var(--bg-color);
+        }
+
+        .timesheet-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .timesheet-table tbody tr:hover {
+            background-color: #f8f9fa99;
+        }
+        
+        .project-info {
+            font-weight: 500;
+        }
+        .project-info span {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-weight: 400;
+        }
+        
+        .time-input {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .time-input input {
+            padding: 0.5rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-family: inherit;
+            width: 100px;
+        }
+        
+        .time-input input:disabled {
+            background-color: var(--bg-color);
+            cursor: not-allowed;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .status-approved { background-color: #28a74520; color: var(--success); }
+        .status-pending { background-color: #ffc10720; color: #b98700; }
+        .status-rejected { background-color: #dc354520; color: var(--danger); }
+        .status-not-submitted { background-color: #6c757d20; color: var(--secondary-color); }
+        
+        .rejected-note {
+            font-size: 0.8rem;
+            color: var(--danger);
+            margin-top: 4px;
+        }
+        
+        .action-cell .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-primary:disabled { background-color: var(--secondary-color); cursor: not-allowed; opacity: 0.5; }
+
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            Employee Portal
+        </div>
+        <ul class="sidebar-nav">
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <span class="icon">&#128197;</span> My Schedule
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link active">
+                    <span class="icon">&#9201;</span> My Timesheets
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <span class="icon">&#128100;</span> My Profile
+                </a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar">JD</div>
+                <div class="user-info">
+                    <strong>John Doe</strong>
+                    <span>Employee</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+
+        <header class="header">
+            <h1>My Timesheets</h1>
+        </header>
+
+        <div class="card">
+            <table class="timesheet-table">
+                <thead>
+                    <tr>
+                        <th>Project & Shift</th>
+                        <th>Scheduled</th>
+                        <th>Actual Hours</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div class="project-info">Downtown Festival
+                                <span>Oct 25, 2025 - Stagehand</span>
+                            </div>
+                        </td>
+                        <td>9:00 AM - 5:00 PM</td>
+                        <td>
+                             <div class="time-input">
+                                <input type="time" value="09:00" disabled> - <input type="time" value="17:00" disabled>
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-approved">Approved</span></td>
+                        <td class="action-cell"></td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <div class="project-info">Summer Gala
+                                <span>Oct 24, 2025 - Stagehand</span>
+                            </div>
+                        </td>
+                        <td>10:00 AM - 6:00 PM</td>
+                        <td>
+                            <div class="time-input">
+                                <input type="time" value="10:05" disabled> - <input type="time" value="18:00" disabled>
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-pending">Pending Approval</span></td>
+                        <td class="action-cell"></td>
+                    </tr>
+
+                    <tr>
+                        <td>
+                            <div class="project-info">Concert Setup
+                                <span>Oct 22, 2025 - Audio Tech</span>
+                            </div>
+                        </td>
+                        <td>1:00 PM - 9:00 PM</td>
+                        <td>
+                            <div class="time-input">
+                                <input type="time" value="13:00"> - <input type="time" value="22:00">
+                            </div>
+                            <div class="rejected-note">Note: End time is wrong.</div>
+                        </td>
+                        <td><span class="status-badge status-rejected">Rejected</span></td>
+                        <td class="action-cell">
+                            <button class="btn btn-primary">Resubmit</button>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>
+                            <div class="project-info">Corporate Event
+                                <span>Oct 21, 2025 - Lighting Op</span>
+                            </div>
+                        </td>
+                        <td>12:00 PM - 11:00 PM</td>
+                        <td>
+                            <div class="time-input">
+                                <input type="time"> - <input type="time">
+                            </div>
+                        </td>
+                        <td><span class="status-badge status-not-submitted">Not Submitted</span></td>
+                        <td class="action-cell">
+                             <button class="btn btn-primary">Submit</button>
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</body>
+</html>

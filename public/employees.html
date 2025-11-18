@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Employees</title>
+    <script type="module" src="/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header"><img src="/assets/logo.png" alt="Booking App Logo" class="logo-img"><span>Booking App</span></div>
+        <ul class="sidebar-nav">
+            <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
+            <li class="nav-item"><a href="/projects.html" class="nav-link">Projects</a></li>
+            <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
+            <li class="nav-item"><a href="/employees.html" class="nav-link active">Employees</a></li>
+            <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
+            <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
+        </ul>
+    </nav>
+    <main class="main-content">
+        <header class="header">
+            <h1>Manage Employees</h1>
+            <div class="header-actions"><button id="add-employee-btn" class="btn btn-primary">+ Add New Employee</button></div>
+        </header>
+        <div class="card">
+             <div class="card-header"><h3>Current Employees</h3></div>
+             <div id="filter-bar" class="card-body">
+                <div class="filter-group"><label for="filter-position">Position</label><select id="filter-position" class="form-control"></select></div>
+                <div class="filter-group"><label for="filter-tags">Tag</label><input type="text" id="filter-tags" class="form-control" placeholder="e.g., Team Lead"></div>
+                <div class="filter-group"><label>Flags</label><div class="form-group-checkbox"><input type="checkbox" id="filter-union" name="filter-union"><label for="filter-union">Union Only</label></div></div>
+                <div class="filter-actions"><button id="filter-btn" class="btn btn-primary">Filter</button><button id="reset-btn" class="btn btn-secondary">Reset</button></div>
+             </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead><tr><th>Name & Flags</th><th>Positions</th><th>Contact</th><th>Auto-Book</th><th>Notes</th><th>Actions</th></tr></thead>
+                    <tbody id="employee-list-table"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="add-employee-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content"><div class="modal-header"><h3>Add New Employee</h3><button id="add-modal-close-btn" class="modal-close">&times;</button></div>
+                <div class="modal-body">
+                    <form id="add-employee-form" class="card-body form-grid">
+                        <div class="form-group"><label for="full_name">Full Name</label><input type="text" id="full_name" name="full_name" required></div>
+                        <div class="form-group"><label for="email">Email Address</label><input type="email" id="email" name="email"></div>
+                        <div class="form-group"><label for="phone">Phone Number</label><input type="tel" id="phone" name="phone"></div>
+                        <div class="form-group"><label>Positions</label><div id="positions-checkbox-container" class="checkbox-group"></div></div>
+                        <div class="form-group"><label for="tags">Tags (comma-separated)</label><input type="text" id="tags" name="tags" placeholder="e.g. Team Lead, Rigger, V1"></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="is_union_electrician" name="is_union_electrician"><label for="is_union_electrician">Union Electrician</label></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="is_last_option" name="is_last_option"><label for="is_last_option">Only if Last Option</label></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="is_autobook" name="is_autobook"><label for="is_autobook">Book Immediately if Available</label></div>
+                        <div class="form-group"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="3"></textarea></div>
+                        <div class="form-actions"><button type="button" id="add-modal-cancel-btn" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Save Employee</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div id="edit-employee-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content"><div class="modal-header"><h3>Edit Employee</h3><button id="edit-modal-close-btn" class="modal-close">&times;</button></div>
+                <div class="modal-body">
+                    <form id="edit-employee-form" class="card-body form-grid">
+                        <input type="hidden" id="edit-employee-id" name="employee_id">
+                        <div class="form-group"><label for="edit_full_name">Full Name</label><input type="text" id="edit_full_name" name="full_name" required></div>
+                        <div class="form-group"><label for="edit_email">Email Address</label><input type="email" id="edit_email" name="email"></div>
+                        <div class="form-group"><label for="edit_phone">Phone Number</label><input type="tel" id="edit_phone" name="phone"></div>
+                        <div class="form-group"><label>Positions</label><div id="edit-positions-checkbox-container" class="checkbox-group"></div></div>
+                        <div class="form-group"><label for="edit_tags">Tags (comma-separated)</label><input type="text" id="edit_tags" name="tags" placeholder="e.g. Team Lead, Rigger, V1"></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_union_electrician" name="is_union_electrician"><label for="edit_is_union_electrician">Union Electrician</label></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_last_option" name="is_last_option"><label for="edit_is_last_option">Only if Last Option</label></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_autobook" name="is_autobook"><label for="edit_is_autobook">Book Immediately if Available</Llabel></div>
+                        <div class="form-group"><label for="edit_notes">Notes</label><textarea id="edit_notes" name="notes" rows="3"></textarea></div>
+                        <div class="form-actions"><button type="button" id="edit-modal-cancel-btn" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script type="module" src="/logout.js"></script>
+    <script type="module" src="/employees.js"></script>
+</body>
+</html>

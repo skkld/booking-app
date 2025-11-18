@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="module" src="/auth.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Project</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <nav class="sidebar">
+        </nav>
+    <main class="main-content">
+        <header class="header">
+            <h1>Edit Project</h1>
+        </header>
+
+        <form id="edit-project-form">
+            <div class="card">
+                <div class="card-header"><h3>Project Details</h3></div>
+                <div class="card-body form-grid form-grid-2-col">
+                    <div class="form-group">
+                        <label for="name">Project Name</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="client_name">Client Name</label>
+                        <input type="text" id="client_name" name="client_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="start_date">Start Date & Time</label>
+                        <input type="datetime-local" id="start_date" name="start_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="end_date">End Date & Time</label>
+                        <input type="datetime-local" id="end_date" name="end_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="venue_address">Venue Address</label>
+                        <input type="text" id="venue_address" name="venue_address">
+                    </div>
+                    <div class="form-group">
+                        <label for="on_site_contact">On-site Contact</label>
+                        <input type="text" id="on_site_contact" name="on_site_contact">
+                    </div>
+                    <div class="form-group">
+                        <label for="dress_code">Dress Code</label>
+                        <input type="text" id="dress_code" name="dress_code">
+                    </div>
+                    <div class="form-group">
+                        <label for="parking_instructions">Parking Instructions</label>
+                        <input type="text" id="parking_instructions" name="parking_instructions">
+                    </div>
+                    <div class="form-group-checkbox" style="grid-column: 1 / -1;">
+                        <input type="checkbox" id="edit_is_union_project" name="is_union_project">
+                        <label for="edit_is_union_project">This is a Union Project</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><h3>Project Notes</h3></div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <textarea id="project_notes" name="project_notes"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+            <input type="hidden" name="timezone" id="timezone">
+        </form>
+    </main>
+    <script type="module" src="/edit-project.js"></script>
+</main> <script type="module" src="/logout.js"></script>
+    
+    <script type="module" src="/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script type="module" src="/auth.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Schedule</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-header">
+        <img src="/assets/logo.png" alt="Booking App Logo" class="logo-img">
+        <span>Booking App</span>
+    </div>
+    <ul class="sidebar-nav">
+        <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
+        <li class="nav-item"><a href="/projects.html" class="nav-link">Projects</a></li>
+        <li class="nav-item"><a href="/scheduling.html" class="nav-link active">Scheduling</a></li>
+        <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
+        <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
+        <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+        <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
+    </ul>
+</nav>
+
+    <main class="main-content">
+        <header class="header calendar-header">
+            <button id="prev-month-btn" class="btn btn-secondary">&larr; Previous</button>
+            <h1 id="month-year-header">Loading...</h1>
+            <button id="next-month-btn" class="btn btn-secondary">Next &rarr;</button>
+        </header>
+
+        <div class="calendar-grid">
+            <div class="day-header">Sunday</div>
+            <div class="day-header">Monday</div>
+            <div class="day-header">Tuesday</div>
+            <div class="day-header">Wednesday</div>
+            <div class="day-header">Thursday</div>
+            <div class="day-header">Friday</div>
+            <div class="day-header">Saturday</div>
+            
+            <div id="calendar-days-container" class="calendar-days">
+                </div>
+        </div>
+    </main>
+    <script type="module" src="/scheduling.js"></script>
+</main> <script type="module" src="/logout.js"></script>
+    
+    <script type="module" src="/dashboard.js"></script>
+</body>
+</html>

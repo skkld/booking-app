@@ -1,0 +1,620 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Modern Theme for Booking App */
+:root {
+    /* Light Mode Colors (Default) */
+    --primary-color: #4F46E5; /* Indigo */
+    --primary-hover: #4338CA;
+    --secondary-color: #6B7280; /* Gray */
+    --bg-light: #F9FAFB; /* Very light gray */
+    --bg-white: #FFFFFF;
+    --border-color: #E5E7EB;
+    --text-dark: #111827;
+    --text-light: #6B7280;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    
+}
+
+/* --- NEW: Dark Mode Color Overrides --- */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-light: #111827; /* Dark Gray */
+        --bg-white: #1F2937; /* Lighter Dark Gray for Cards */
+        --border-color: #374151;
+        --text-dark: #F9FAFB; /* Light Gray for Text */
+        --text-light: #9CA3AF;
+        --shadow-sm: 0 1px 2px 0 rgb(255 255 255 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(255 255 255 / 0.1), 0 2px 4px -2px rgb(255 255 255 / 0.1);
+    }
+
+body {
+    font-family: var(--font-sans);
+    margin: 0;
+    display: flex;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Sidebar Navigation --- */
+.sidebar {
+    width: 250px;
+    background-color: var(--bg-white);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: fixed;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    padding: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+}
+/* Styling for the new image logo */
+.logo-img {
+    height: 50px; /* Adjust size as needed */
+    margin-right: 0.75rem;
+}
+.logo-icon {
+    background-color: var(--primary-color);
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    margin-right: 0.75rem;
+    font-size: 1rem;
+}
+
+.sidebar-nav { list-style: none; padding: 1rem; margin: 0; }
+.nav-item { margin-bottom: 0.25rem; }
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    text-decoration: none;
+    color: var(--text-dark);
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
+}
+.nav-link.active, .nav-link:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+.nav-link .icon { margin-right: 0.75rem; width: 20px; font-size: 1.1rem; }
+
+/* --- Main Content --- */
+.main-content {
+    margin-left: 250px;
+    flex: 1;
+    padding: 2.5rem;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 { margin: 0; font-size: 1.875rem; font-weight: 700; }
+
+.btn {
+    padding: 0.625rem 1.25rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+.btn-primary:hover { background-color: var(--primary-hover); }
+
+.btn-secondary {
+    background-color: var(--bg-white);
+    color: var(--text-dark);
+    border-color: var(--border-color);
+}
+.btn-secondary:hover {
+    background-color: var(--bg-light);
+}
+
+.card {
+    background-color: var(--bg-white);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+}
+.card-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.card-header h3 { margin: 0; font-size: 1.125rem; font-weight: 600; }
+.card-body { padding: 1.5rem; }
+.card-footer {
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-light);
+    border-top: 1px solid var(--border-color);
+}
+
+/* --- Forms --- */
+.form-grid { display: grid; gap: 1.25rem; }
+.form-group { display: flex; flex-direction: column; }
+.form-group label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+.form-group input, .form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: var(--bg-white);
+    color: var(--text-dark);
+}
+.form-group input:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px #C7D2FE;
+}
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-grid-2-col {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.form-actions { margin-top: 1rem; }
+
+.add-shift-form {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+.add-shift-form input { padding: 0.5rem; font-size: 0.875rem; }
+
+/* --- Tables --- */
+.table-container { width: 100%; overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+.data-table thead th {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--text-light);
+    background-color: var(--bg-light);
+}
+/* --- Assignment Modal Styles --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--bg-white);
+    padding: 1.5rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 700px;
+    box-shadow: var(--shadow-md);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.modal-header h3 { margin: 0; }
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: var(--text-light);
+}
+/* --- Upgraded 3-Column Modal Layout --- */
+.assignment-columns-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Style for unavailable crew */
+.crew-list-item.unavailable {
+    text-decoration: line-through;
+    color: var(--text-light);
+    cursor: not-allowed;
+}
+}
+
+.crew-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+}
+
+.crew-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    background-color: var(--bg-light);
+}
+
+.crew-list-item:hover {
+    background-color: #e0e0e0;
+}
+
+@media (prefers-color-scheme: dark) {
+    .crew-list-item:hover {
+        background-color: #374151;
+    }
+    /* --- Note Styles --- */
+.crew-note {
+    font-style: italic;
+    color: var(--text-light);
+    margin-left: 0.25rem;
+}
+
+.note-input {
+    flex-grow: 1;
+    margin-left: 1rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-white);
+    color: var(--text-dark);
+}
+/* --- Add Crew Form in Modal --- */
+.add-crew-form {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+}
+.add-crew-form input {
+    flex-grow: 1;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+.add-crew-form button {
+    padding: 0.5rem 1rem;
+}
+/* --- Add Crew Link in Modal --- */
+.add-crew-footer {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+    text-align: center;
+}
+.add-crew-footer a {
+    width: 100%;
+    display: block;
+}
+/* --- Delete Button Style --- */
+.btn-danger {
+    background-color: transparent;
+    color: var(--danger);
+    border-color: var(--danger);
+    padding: 0.5rem 1rem;
+}
+.btn-danger:hover {
+    background-color: var(--danger);
+    color: white;
+}
+/* Style for unassigned shift slots */
+.unassigned-slot {
+    color: var(--text-light);
+    font-style: italic;
+}
+/* Styles for the new dashboard grid */
+.widget-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+.card-span-2 {
+    grid-column: span 2;
+}
+.list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.list-item-summary {
+    padding: 0.75rem 0;
+    border-bottom: 1px dashed var(--border-color);
+    font-size: 0.9rem;
+}
+/* --- Success/Complete Button Style --- */
+.btn-success {
+    background-color: transparent;
+    color: var(--success);
+    border-color: var(--success);
+}
+.btn-success:hover {
+    background-color: var(--success);
+    color: white;
+}
+/* --- Tab Styles --- */
+.tab-nav {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+.tab-link {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-light);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.tab-link.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+/* --- Inline Edit Styles --- */
+.rate-input {
+    width: 80px;
+    padding: 0.25rem 0.5rem;
+}
+.rate-input, .rate-display.hidden {
+    display: none;
+}
+.rate-input.visible, .rate-display {
+    display: inline-block;
+}
+/* --- Calendar Page Styles --- */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.calendar-header h1 {
+    font-size: 1.75rem;
+    margin: 0;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-white);
+}
+.day-header {
+    font-weight: 600;
+    padding: 0.75rem;
+    text-align: center;
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+}
+.calendar-days {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    min-height: 70vh;
+}
+.day-cell {
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    padding: 0.5rem;
+    position: relative;
+    min-height: 120px;
+}
+.day-cell:nth-child(7n) { border-right: none; }
+.day-cell.other-month { background-color: var(--bg-light); }
+.day-number {
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+.day-cell.other-month .day-number { color: var(--text-light); }
+
+.shift-entry {
+    font-size: 0.8rem;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.25rem;
+}
+.shift-entry strong { display: block; font-weight: 600; }
+.crew-list {
+    font-style: italic;
+    opacity: 0.9;
+}
+.crew-needed {
+    font-weight: 600;
+    color: var(--warning);
+}
+/* --- Clickable Shift Entry on Calendar --- */
+.shift-entry-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: 0.25rem;
+}
+.shift-entry-link .shift-entry {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 0;
+}
+.shift-entry-link:hover .shift-entry {
+    transform: scale(1.03);
+    box-shadow: var(--shadow-md);
+}
+/* --- Dynamic Role Entry Styles --- */
+.role-entry {
+    display: grid;
+    grid-template-columns: 1fr 100px 50px;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+.role-entry label {
+    display: none; /* Hide labels for inline fields */
+}
+/* --- Shift Location Display --- */
+.shift-location {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    font-style: italic;
+}
+/* --- Employee Flag Styles --- */
+.employee-flags span {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    margin-top: 0.25rem;
+    margin-right: 0.25rem;
+}
+.flag-last-option {
+    background-color: var(--warning);
+    color: var(--text-dark);
+}
+.flag-union {
+    background-color: var(--secondary-color);
+    color: var(--bg-white);
+}
+/* --- Employee Contact Info Styles --- */
+.contact-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem; /* This adds the space */
+}
+.contact-info span {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+/* --- Employee Filter Bar --- */
+#filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--border-color);
+}
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-grow: 1;
+}
+.filter-group label {
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+.filter-group .form-control,
+.filter-group input {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+}
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    border-left: 1px solid var(--border-color);
+    padding-left: 1.5rem;
+    margin-left: auto;
+}
+/* --- Modal Body Scrolling Fix --- */
+.modal-body {
+    max-height: 70vh; /* 70% of the viewport height */
+    overflow-y: auto; /* Add vertical scrollbar only when needed */
+    padding: 1.5rem;
+    padding-top: 0;
+}
+.modal-content {
+    /* We remove padding from the content box and add it to header/body */
+    padding: 0; 
+}
+.modal-header {
+    padding: 1.5rem;
+}
+
+/* --- Form Actions Button Spacing --- */
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+/* --- Map Container Style --- */
+.map-container {
+    grid-column: 1 / -1; /* Make the map span both columns */
+    width: 100%;
+    height: 350px;
+    background-color: var(--border-color); /* Placeholder color */
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+}
