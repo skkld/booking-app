@@ -633,9 +633,19 @@ body {
 
 /* Mobile Styles (Tablets and Phones) */
 @media (max-width: 768px) {
+
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
     /* Show the hamburger button */
     #mobile-menu-toggle {
         display: block;
+        align-self: flex-start; /* Forces the button to the left */
+        margin-left: -0.5rem;   /* Pulls it slightly left to align with text */
+        margin-bottom: 0.5rem;  /* Adds space between icon and title */
     }
 
     /* Hide sidebar by default off-screen */
