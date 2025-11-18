@@ -4,18 +4,16 @@ async function loadProjects() {
     const tableBody = document.getElementById('projects-list-table');
     const urlParams = new URLSearchParams(window.location.search);
     const filterStatus = urlParams.get('status') || 'active';
-
-    // --- ROLE CHECK ---
     const role = getUserRole();
-    if (role === 'crew') {
-        const createBtn = document.getElementById('create-project-btn');
-        if (createBtn) createBtn.style.display = 'none';
-    }
-    // ------------------
 
+    // --- UI SETUP ---
+    // Hide "Create Project" button for Crew
+    const createBtn = document.getElementById('create-project-btn');
+    if (role === 'crew' && createBtn) createBtn.style.display = 'none';
+
+    // Toggle Filter Buttons
     const activeBtn = document.getElementById('active-projects-btn');
     const completedBtn = document.getElementById('completed-projects-btn');
-    
     if (activeBtn && completedBtn) {
         if (filterStatus === 'active') {
             activeBtn.classList.add('btn-primary'); activeBtn.classList.remove('btn-secondary');
@@ -26,14 +24,54 @@ async function loadProjects() {
         }
     }
 
-    const { data: projects, error } = await _supabase
-        .from('projects')
-        .select('*')
-        .eq('status', filterStatus)
-        .order('start_date', { ascending: false });
+    // --- DATA FETCHING ---
+    let projects = [];
+    
+    if (role === 'crew') {
+        // 1. Get the current user's employee ID
+        const { data: { user } } = await _supabase.auth.getUser();
+        if (!user) return; // Should be handled by auth.js, but safety first
+        
+        const { data: employee } = await _supabase.from('employees').select('id').eq('user_id', user.id).single();
+        
+        if (employee) {
+            // 2. Find all shifts this employee is assigned to
+            const { data: assignments } = await _supabase
+                .from('assignments')
+                .select('shift_id, shifts(project_id)')
+                .eq('employee_id', employee.id);
+            
+            if (assignments && assignments.length > 0) {
+                // 3. Extract unique Project IDs
+                const projectIds = [...new Set(assignments.map(a => a.shifts.project_id))];
+                
+                // 4. Fetch ONLY those projects
+                const { data: myProjects, error } = await _supabase
+                    .from('projects')
+                    .select('*')
+                    .in('id', projectIds) // Filter by ID list
+                    .eq('status', filterStatus)
+                    .order('start_date', { ascending: false });
+                
+                if (!error) projects = myProjects;
+            }
+        }
+    } else {
+        // Admin/Manager: Fetch ALL projects based on status filter
+        const { data: allProjects, error } = await _supabase
+            .from('projects')
+            .select('*')
+            .eq('status', filterStatus)
+            .order('start_date', { ascending: false });
+            
+        if (!error) projects = allProjects;
+    }
 
-    if (error) { tableBody.innerHTML = `<tr><td colspan="5">Error loading projects.</td></tr>`; return; }
-    if (projects.length === 0) { tableBody.innerHTML = `<tr><td colspan="5">No ${filterStatus} projects found.</td></tr>`; return; }
+    // --- DISPLAY ---
+    if (!projects || projects.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5">No ${filterStatus} projects found.</td></tr>`;
+        return;
+    }
 
     tableBody.innerHTML = '';
     projects.forEach(project => {
@@ -44,7 +82,6 @@ async function loadProjects() {
             ? `<span style="color: var(--primary-color); font-weight: 600;">Active</span>`
             : `<span style="color: var(--secondary-color);">Completed</span>`;
         
-        // Only show "Mark Complete" if admin/manager
         const completeButtonHtml = (filterStatus === 'active' && role !== 'crew')
             ? `<button class="btn btn-success btn-complete" data-project-id="${project.id}" style="padding: 0.5rem 1rem; margin-left: 0.5rem;">Mark as Complete</button>`
             : '';

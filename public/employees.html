@@ -132,14 +132,21 @@
                             </div>
                             <div id="edit-positions-checkbox-container" class="checkbox-group"></div>
                         </div>
-                        <div class="form-group">
+                        
+                        <div class="form-group" id="edit-modal-tags-section">
                             <label for="edit_tags">Tags (comma-separated)</label>
                             <input type="text" id="edit_tags" name="tags" placeholder="e.g. Team Lead, Rigger, V1">
                         </div>
-                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_union_electrician" name="is_union_electrician"><label for="edit_is_union_electrician">Union Electrician</label></div>
-                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_last_option" name="is_last_option"><label for="edit_is_last_option">Only if Last Option</label></div>
-                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_autobook" name="is_autobook"><label for="edit_is_autobook">Book Immediately if Available</Llabel></div>
-                        <div class="form-group"><label for="edit_notes">Notes</label><textarea id="edit_notes" name="notes" rows="3"></textarea></div>
+                        <div id="edit-modal-flags-section">
+                            <div class="form-group-checkbox"><input type="checkbox" id="edit_is_union_electrician" name="is_union_electrician"><label for="edit_is_union_electrician">Union Electrician</label></div>
+                            <div class="form-group-checkbox"><input type="checkbox" id="edit_is_last_option" name="is_last_option"><label for="edit_is_last_option">Only if Last Option</label></div>
+                            <div class="form-group-checkbox"><input type="checkbox" id="edit_is_autobook" name="is_autobook"><label for="edit_is_autobook">Book Immediately if Available</Llabel></div>
+                        </div>
+                        <div class="form-group" id="edit-modal-notes-section">
+                            <label for="edit_notes">Notes</label>
+                            <textarea id="edit_notes" name="notes" rows="3"></textarea>
+                        </div>
+                        
                         <div class="form-actions">
                             <button type="button" id="edit-modal-cancel-btn" class="btn btn-secondary">Cancel</button>
                             <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -149,7 +156,6 @@
             </div>
         </div>
     </main>
-    
     <script type="module" src="/logout.js"></script>
     <script type="module" src="/employees.js"></script>
 </body>
