@@ -26,7 +26,7 @@ serve(async (req) => {
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: true, // Auto-confirm them for simplicity
+      email_confirm: true,
     });
 
     if (authError) throw authError;
@@ -35,15 +35,52 @@ serve(async (req) => {
     const { error: profileError } = await supabaseAdmin
       .from('employees')
       .insert({
-        user_id: authData.user.id, // Link to the auth user
-        full_name: email, // Default name to email
+        user_id: authData.user.id,
+        full_name: email,
         email: email,
         role: role,
       });
 
     if (profileError) throw profileError;
 
-    return new Response(JSON.stringify({ message: "User created successfully" }), {
+    // 3. Send the Invite Email via SendGrid
+    const emailHtml = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2>Welcome to the Booking App</h2>
+        <p>You have been invited to join the team.</p>
+        <p><strong>Your Login Details:</strong></p>
+        <ul>
+          <li><strong>Email:</strong> ${email}</li>
+          <li><strong>Temporary Password:</strong> ${password}</li>
+        </ul>
+        <p>Please log in and change your password as soon as possible.</p>
+        <a href="https://booking-app.vercel.app" 
+           style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+           Log In Now
+        </a>
+      </div>
+    `;
+
+    const sendGridRes = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SENDGRID_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: email }] }],
+        // **FIXED: Added quotes around the email address**
+        from: { email: "skkld@skkld.com", name: "Booking App Admin" }, 
+        subject: "You have been invited to the Booking App",
+        content: [{ type: 'text/html', value: emailHtml }],
+      }),
+    });
+
+    if (!sendGridRes.ok) {
+      console.error("Failed to send email via SendGrid", await sendGridRes.text());
+    }
+
+    return new Response(JSON.stringify({ message: "User created and invite sent" }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
