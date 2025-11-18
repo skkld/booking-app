@@ -6,8 +6,18 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const _supabase = createClient(supabaseUrl, supabaseKey);
 
 async function logout() {
+    // 1. Tell Supabase to end the session
     await _supabase.auth.signOut();
-    window.location.href = '/login.html';
+
+    // 2. FORCE CLEAR all local browser data
+    // This ensures login.js won't find any leftover tokens
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // 3. Redirect to login page
+    // .replace() is better than .href here because it prevents the "Back" button 
+    // from taking you back to the restricted page
+    window.location.replace('/login.html');
 }
 
 const logoutButton = document.getElementById('logout-btn');
