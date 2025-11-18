@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Application Settings</title>
+    
     <script type="module" src="/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <link rel="stylesheet" href="/styles.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
@@ -33,10 +35,11 @@
             <div class="tab-nav">
                 <button class="tab-link active" data-tab="my-account-tab">My Account</button>
                 
-                <button class="tab-link" data-tab="positions-tab">Positions & Rates</button>
-                <button class="tab-link" data-tab="payroll-rules-tab">Payroll Rules</button>
-                <button class="tab-link" data-tab="union-rules-tab">Union Rules</button>
-                <button class="tab-link" data-tab="templates-tab">Email Templates</button>
+                <button class="tab-link" data-tab="positions-tab" style="display: none;">Positions & Rates</button>
+                <button class="tab-link" data-tab="payroll-rules-tab" style="display: none;">Payroll Rules</button>
+                <button class="tab-link" data-tab="union-rules-tab" style="display: none;">Union Rules</button>
+                <button class="tab-link" data-tab="templates-tab" style="display: none;">Email Templates</button>
+                
                 <button class="tab-link" data-tab="users-tab" style="display: none;">User Management</button>
             </div>
 
@@ -44,10 +47,7 @@
                 <div class="card">
                     <div class="card-header"><h3>Change My Password</h3></div>
                     <form id="my-password-form" class="card-body form-grid">
-                        <div class="form-group">
-                            <label>New Password</label>
-                            <input type="password" id="my-new-password" required>
-                        </div>
+                        <div class="form-group"><label>New Password</label><input type="password" id="my-new-password" required></div>
                         <div class="form-actions"><button type="submit" class="btn btn-primary">Update Password</button></div>
                     </form>
                 </div>
@@ -66,7 +66,12 @@
                             </form>
                             <div class="card-span-2">
                                 <h4>Existing Positions</h4>
-                                <div class="table-container"><table class="data-table"><thead><tr><th>Position Name</th><th>Default Rate</th><th>Actions</th></tr></thead><tbody id="positions-list-table"></tbody></table></div>
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead><tr><th>Position Name</th><th>Default Rate</th><th>Actions</th></tr></thead>
+                                        <tbody id="positions-list-table"></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -127,19 +132,39 @@
                 </div>
                 <div class="card">
                     <div class="card-header"><h3>Registered Users</h3></div>
-                    <div class="table-container"><table class="data-table"><thead><tr><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody id="users-list-table"></tbody></table></div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead><tr><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+                            <tbody id="users-list-table"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div id="template-modal" class="modal-overlay" style="display: none;">
-             <div class="modal-content" style="max-width: 800px;"><div class="modal-header"><h3 id="template-modal-title">Add New Template</h3><button id="template-modal-close" class="modal-close">&times;</button></div><div class="modal-body"><form id="template-form"><input type="hidden" id="template-id"><div class="form-grid"><div class="form-group"><label for="template-name">Template Name</label><input type="text" id="template-name" required></div><div class="form-group"><label for="template-subject">Email Subject</label><input type="text" id="template-subject" required></div><div class="form-group"><label for="template-body">Email Body (HTML)</label><textarea id="template-body" rows="15" required></textarea></div><div class="form-group-checkbox"><input type="checkbox" id="template-active"><label for="template-active">Set as active template</label></div><p style="font-size: 0.8rem; color: var(--text-light);">Variables: `{project_name}`, `{employee_name}`, `{shift_name}`, `{shift_role}`, `{shift_date}`, `{shift_time}`, `{location}`, `{contact}`, `{dress_code}`, `{parking}`, `{notes}`, `{yes_link}`, `{no_link}`</p></div><div class="form-actions" style="text-align: right; margin-top: 1.5rem;"><button type="submit" class="btn btn-primary">Save Template</button></div></form></div></div>
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header"><h3 id="template-modal-title">Add New Template</h3><button id="template-modal-close" class="modal-close">&times;</button></div>
+                <div class="modal-body">
+                    <form id="template-form">
+                        <input type="hidden" id="template-id">
+                        <div class="form-grid">
+                            <div class="form-group"><label for="template-name">Template Name</label><input type="text" id="template-name" required></div>
+                            <div class="form-group"><label for="template-subject">Email Subject</label><input type="text" id="template-subject" required></div>
+                            <div class="form-group"><label for="template-body">Email Body (HTML)</label><textarea id="template-body" rows="15" required></textarea></div>
+                            <div class="form-group-checkbox"><input type="checkbox" id="template-active"><label for="template-active">Set as active template</label></div>
+                            <p style="font-size: 0.8rem; color: var(--text-light);">Variables: `{project_name}`, `{employee_name}`, `{shift_name}`, `{shift_role}`, `{shift_date}`, `{shift_time}`, `{location}`, `{contact}`, `{dress_code}`, `{parking}`, `{notes}`, `{yes_link}`, `{no_link}`</p>
+                        </div>
+                        <div class="form-actions" style="text-align: right; margin-top: 1.5rem;"><button type="submit" class="btn btn-primary">Save Template</button></div>
+                    </form>
+                </div>
+            </div>
         </div>
         <div id="change-password-modal" class="modal-overlay" style="display: none;">
-             <div class="modal-content"><div class="modal-header"><h3 id="change-password-title">Change Password</h3><button id="change-password-close" class="modal-close">&times;</button></div><form id="change-password-form" class="modal-body"><input type="hidden" id="change-password-user-id"><div class="form-group"><label for="new-password">New Password</label><input type="password" id="new-password" class="form-control" required></div><div class="form-actions" style="text-align: right;"><button type="submit" class="btn btn-primary">Set New Password</button></div></form></div>
+            <div class="modal-content"><div class="modal-header"><h3 id="change-password-title">Change Password</h3><button id="change-password-close" class="modal-close">&times;</button></div><form id="change-password-form" class="modal-body"><input type="hidden" id="change-password-user-id"><div class="form-group"><label for="new-password">New Password</label><input type="password" id="new-password" class="form-control" required></div><div class="form-actions" style="text-align: right;"><button type="submit" class="btn btn-primary">Set New Password</button></div></form></div>
         </div>
         <div id="delete-user-modal" class="modal-overlay" style="display: none;">
-             <div class="modal-content"><div class="modal-header"><h3 id="delete-user-title">Confirm Deletion</h3><button id="delete-user-close" class="modal-close">&times;</button></div><form id="delete-user-form" class="modal-body"><input type="hidden" id="delete-user-id"><p>To delete this user, please enter **your** admin password to confirm.</p><div class="form-group"><label for="admin-password-confirm">Your Admin Password</label><input type="password" id="admin-password-confirm" class="form-control" required></div><div class="form-actions" style="text-align: right;"><button type="submit" class="btn btn-danger">Permanently Delete User</button></div></form></div>
+            <div class="modal-content"><div class="modal-header"><h3 id="delete-user-title">Confirm Deletion</h3><button id="delete-user-close" class="modal-close">&times;</button></div><form id="delete-user-form" class="modal-body"><input type="hidden" id="delete-user-id"><p>To delete this user, please enter **your** admin password to confirm.</p><div class="form-group"><label for="admin-password-confirm">Your Admin Password</label><input type="password" id="admin-password-confirm" class="form-control" required></div><div class="form-actions" style="text-align: right;"><button type="submit" class="btn btn-danger">Permanently Delete User</button></div></form></div>
         </div>
     </main>
     

@@ -8,19 +8,50 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 function checkAdminAccess() {
     const userRole = getUserRole();
     
-    if (userRole === 'admin') {
-        // Show admin-only tabs
-        document.querySelector('button[data-tab="users-tab"]').style.display = 'block';
-        document.querySelector('button[data-tab="positions-tab"]').style.display = 'block';
-    } else {
-        // Hide admin-only tabs
-        document.querySelector('button[data-tab="users-tab"]').style.display = 'none';
-        document.querySelector('button[data-tab="positions-tab"]').style.display = 'none';
+    const adminTabs = [
+        'positions-tab', 
+        'payroll-rules-tab', 
+        'union-rules-tab', 
+        'templates-tab'
+    ];
+    const superAdminTabs = ['users-tab'];
+
+    if (userRole === 'admin' || userRole === 'manager') {
+        // Show operational tabs for Admin and Manager
+        adminTabs.forEach(tab => {
+            document.querySelector(`button[data-tab="${tab}"]`).style.display = 'block';
+        });
         
-        // If on an admin tab, switch to My Account
-        if (document.querySelector('.tab-link.active').style.display === 'none') {
-            document.querySelector('button[data-tab="my-account-tab"]').click();
+        // Only Admin sees User Management
+        if (userRole === 'admin') {
+            superAdminTabs.forEach(tab => {
+                document.querySelector(`button[data-tab="${tab}"]`).style.display = 'block';
+            });
+            // Default to Positions for Admin
+            document.querySelector('button[data-tab="my-account-tab"]').classList.remove('active');
+            document.getElementById('my-account-tab').style.display = 'none';
+            
+            document.querySelector('button[data-tab="positions-tab"]').classList.add('active');
+            document.getElementById('positions-tab').style.display = 'block';
+        } else {
+            // Default to Positions for Manager too
+            document.querySelector('button[data-tab="my-account-tab"]').classList.remove('active');
+            document.getElementById('my-account-tab').style.display = 'none';
+            
+            document.querySelector('button[data-tab="positions-tab"]').classList.add('active');
+            document.getElementById('positions-tab').style.display = 'block';
         }
+    } else {
+        // Crew: Hide everything except My Account
+        adminTabs.forEach(tab => {
+            document.querySelector(`button[data-tab="${tab}"]`).style.display = 'none';
+        });
+        superAdminTabs.forEach(tab => {
+            document.querySelector(`button[data-tab="${tab}"]`).style.display = 'none';
+        });
+        
+        // Force My Account active
+        document.querySelector('button[data-tab="my-account-tab"]').click();
     }
 }
 
@@ -51,23 +82,17 @@ document.getElementById('my-password-form').addEventListener('submit', async (e)
 // --- 4. POSITIONS & RATES LOGIC ---
 async function loadPositions() {
     const tableBody = document.getElementById('positions-list-table');
+    if (!tableBody) return;
     const { data: positions, error } = await _supabase.from('positions').select('*').order('name');
     if (error) { console.error(error); return; }
-    
     tableBody.innerHTML = '';
     positions.forEach(pos => {
         const rateDisplay = pos.default_rate ? `$${Number(pos.default_rate).toFixed(2)}` : 'N/A';
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${pos.name}</td>
-            <td>
-                <span class="rate-display">${rateDisplay}</span>
-                <input type="number" class="rate-input" value="${pos.default_rate || 0}" step="0.01" min="0" style="display:none; width: 80px;">
-            </td>
-            <td>
-                <button class="btn btn-secondary edit-rate-btn" style="padding: 0.5rem 1rem;">Edit</button>
-                <button class="btn btn-danger delete-pos-btn" data-pos-id="${pos.id}">Delete</button>
-            </td>
+            <td><span class="rate-display">${rateDisplay}</span><input type="number" class="rate-input" value="${pos.default_rate || 0}" step="0.01" min="0" style="display:none; width: 80px;"></td>
+            <td><button class="btn btn-secondary edit-rate-btn" style="padding: 0.5rem 1rem;">Edit</button><button class="btn btn-danger delete-pos-btn" data-pos-id="${pos.id}">Delete</button></td>
         `;
         tableBody.appendChild(row);
     });
@@ -129,57 +154,61 @@ document.getElementById('add-position-form').addEventListener('submit', handleAd
 const payrollForm = document.getElementById('payroll-rules-form');
 async function loadPayrollRules() {
     const { data } = await _supabase.from('payroll_rules').select('*').eq('id', 1).single();
-    if(data) {
-        payrollForm.elements.week_start_day.value = data.week_start_day;
-        payrollForm.elements.daily_overtime_threshold.value = data.daily_overtime_threshold;
-        payrollForm.elements.night_premium_start.value = data.night_premium_start;
-        payrollForm.elements.night_premium_end.value = data.night_premium_end;
-        payrollForm.elements.auto_break_threshold.value = data.auto_break_threshold;
-        payrollForm.elements.auto_break_duration.value = data.auto_break_duration;
+    if(data && payrollForm) {
+        if (payrollForm.elements.week_start_day) payrollForm.elements.week_start_day.value = data.week_start_day;
+        if (payrollForm.elements.daily_overtime_threshold) payrollForm.elements.daily_overtime_threshold.value = data.daily_overtime_threshold;
+        if (payrollForm.elements.night_premium_start) payrollForm.elements.night_premium_start.value = data.night_premium_start;
+        if (payrollForm.elements.night_premium_end) payrollForm.elements.night_premium_end.value = data.night_premium_end;
+        if (payrollForm.elements.auto_break_threshold) payrollForm.elements.auto_break_threshold.value = data.auto_break_threshold;
+        if (payrollForm.elements.auto_break_duration) payrollForm.elements.auto_break_duration.value = data.auto_break_duration;
     }
 }
-payrollForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(payrollForm);
-    const updates = {
-        week_start_day: fd.get('week_start_day'),
-        daily_overtime_threshold: fd.get('daily_overtime_threshold'),
-        night_premium_start: fd.get('night_premium_start'),
-        night_premium_end: fd.get('night_premium_end'),
-        auto_break_threshold: fd.get('auto_break_threshold'),
-        auto_break_duration: fd.get('auto_break_duration')
-    };
-    const { error } = await _supabase.from('payroll_rules').update(updates).eq('id', 1);
-    if(error) alert(error.message); else alert("Payroll rules saved.");
-});
+if (payrollForm) {
+    payrollForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(payrollForm);
+        const updates = {
+            week_start_day: fd.get('week_start_day'),
+            daily_overtime_threshold: fd.get('daily_overtime_threshold'),
+            night_premium_start: fd.get('night_premium_start'),
+            night_premium_end: fd.get('night_premium_end'),
+            auto_break_threshold: fd.get('auto_break_threshold'),
+            auto_break_duration: fd.get('auto_break_duration')
+        };
+        const { error } = await _supabase.from('payroll_rules').update(updates).eq('id', 1);
+        if(error) alert(error.message); else alert("Payroll rules saved.");
+    });
+}
 
 // --- 6. UNION RULES LOGIC ---
 const unionForm = document.getElementById('union-rules-form');
 async function loadUnionRules() {
     const { data } = await _supabase.from('union_payroll_rules').select('*').eq('id', 1).single();
-    if(data) {
-        unionForm.elements.daily_overtime_threshold.value = data.daily_overtime_threshold;
-        unionForm.elements.night_premium_start.value = data.night_premium_start;
-        unionForm.elements.night_premium_end.value = data.night_premium_end;
-        unionForm.elements.auto_break_threshold.value = data.auto_break_threshold;
-        unionForm.elements.auto_break_duration.value = data.auto_break_duration;
-        unionForm.elements.calculate_sundays_as_ot.checked = data.calculate_sundays_as_ot;
+    if(data && unionForm) {
+        if (unionForm.elements.daily_overtime_threshold) unionForm.elements.daily_overtime_threshold.value = data.daily_overtime_threshold;
+        if (unionForm.elements.night_premium_start) unionForm.elements.night_premium_start.value = data.night_premium_start;
+        if (unionForm.elements.night_premium_end) unionForm.elements.night_premium_end.value = data.night_premium_end;
+        if (unionForm.elements.auto_break_threshold) unionForm.elements.auto_break_threshold.value = data.auto_break_threshold;
+        if (unionForm.elements.auto_break_duration) unionForm.elements.auto_break_duration.value = data.auto_break_duration;
+        if (unionForm.elements.calculate_sundays_as_ot) unionForm.elements.calculate_sundays_as_ot.checked = data.calculate_sundays_as_ot;
     }
 }
-unionForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(unionForm);
-    const updates = {
-        daily_overtime_threshold: fd.get('daily_overtime_threshold'),
-        night_premium_start: fd.get('night_premium_start'),
-        night_premium_end: fd.get('night_premium_end'),
-        auto_break_threshold: fd.get('auto_break_threshold'),
-        auto_break_duration: fd.get('auto_break_duration'),
-        calculate_sundays_as_ot: fd.get('calculate_sundays_as_ot') === 'on'
-    };
-    const { error } = await _supabase.from('union_payroll_rules').update(updates).eq('id', 1);
-    if(error) alert(error.message); else alert("Union rules saved.");
-});
+if (unionForm) {
+    unionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(unionForm);
+        const updates = {
+            daily_overtime_threshold: fd.get('daily_overtime_threshold'),
+            night_premium_start: fd.get('night_premium_start'),
+            night_premium_end: fd.get('night_premium_end'),
+            auto_break_threshold: fd.get('auto_break_threshold'),
+            auto_break_duration: fd.get('auto_break_duration'),
+            calculate_sundays_as_ot: fd.get('calculate_sundays_as_ot') === 'on'
+        };
+        const { error } = await _supabase.from('union_payroll_rules').update(updates).eq('id', 1);
+        if(error) alert(error.message); else alert("Union rules saved.");
+    });
+}
 
 // --- 7. EMAIL TEMPLATE LOGIC ---
 const templateModal = document.getElementById('template-modal');
@@ -187,7 +216,9 @@ const templateForm = document.getElementById('template-form');
 
 async function loadTemplates() {
     const tableBody = document.getElementById('templates-list-table');
-    const { data: templates } = await _supabase.from('email_templates').select('*');
+    if (!tableBody) return;
+    const { data: templates, error } = await _supabase.from('email_templates').select('*');
+    if (error) { console.error(error); return; }
     tableBody.innerHTML = '';
     if (!templates || templates.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="4">No templates found.</td></tr>`;
@@ -222,24 +253,26 @@ async function openTemplateModal(id = null) {
     templateModal.style.display = 'flex';
 }
 
-templateForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('template-id').value;
-    const data = {
-        template_name: document.getElementById('template-name').value,
-        subject: document.getElementById('template-subject').value,
-        body: document.getElementById('template-body').value,
-        is_active: document.getElementById('template-active').checked
-    };
-    
-    let error;
-    if (id) {
-        ({ error } = await _supabase.from('email_templates').update(data).eq('id', id));
-    } else {
-        ({ error } = await _supabase.from('email_templates').insert(data));
-    }
-    if (error) alert(error.message); else { alert("Template saved."); templateModal.style.display = 'none'; loadTemplates(); }
-});
+if (templateForm) {
+    templateForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('template-id').value;
+        const data = {
+            template_name: document.getElementById('template-name').value,
+            subject: document.getElementById('template-subject').value,
+            body: document.getElementById('template-body').value,
+            is_active: document.getElementById('template-active').checked
+        };
+        
+        let error;
+        if (id) {
+            ({ error } = await _supabase.from('email_templates').update(data).eq('id', id));
+        } else {
+            ({ error } = await _supabase.from('email_templates').insert(data));
+        }
+        if (error) alert(error.message); else { alert("Template saved."); templateModal.style.display = 'none'; loadTemplates(); }
+    });
+}
 document.getElementById('add-template-btn').addEventListener('click', () => openTemplateModal());
 document.getElementById('template-modal-close').onclick = () => templateModal.style.display = 'none';
 
@@ -248,9 +281,12 @@ document.getElementById('template-modal-close').onclick = () => templateModal.st
 const usersTableBody = document.getElementById('users-list-table');
 const inviteUserForm = document.getElementById('invite-user-form');
 const changePassModal = document.getElementById('change-password-modal');
+const changePassForm = document.getElementById('change-password-form');
 const deleteUserModal = document.getElementById('delete-user-modal');
+const deleteUserForm = document.getElementById('delete-user-form');
 
 async function loadUsers() {
+    if (!usersTableBody) return;
     const { data: employees } = await _supabase.from('employees').select('user_id, full_name, email, role');
     usersTableBody.innerHTML = '';
     if (!employees) return;
@@ -286,56 +322,74 @@ async function loadUsers() {
     });
 }
 
-inviteUserForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('user-email').value;
-    const password = document.getElementById('user-password').value;
-    const role = document.getElementById('user-role').value;
-    
-    try {
-        const { error } = await _supabase.functions.invoke('create-user', { body: { email, password, role } });
-        if (error) throw error;
-        alert('User created successfully!');
-        inviteUserForm.reset();
-        loadUsers();
-    } catch (error) { alert(`Failed: ${error.message}`); }
-});
+if (inviteUserForm) {
+    inviteUserForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('user-email').value;
+        const password = document.getElementById('user-password').value;
+        const role = document.getElementById('user-role').value;
+        
+        try {
+            const { error } = await _supabase.functions.invoke('create-user', { body: { email, password, role } });
+            if (error) throw error;
+            alert('User created successfully!');
+            inviteUserForm.reset();
+            loadUsers();
+        } catch (error) {
+            console.error('Error creating user:', error);
+            alert(`Failed to create user: ${error.message}`);
+        }
+    });
+}
 
-document.getElementById('change-password-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const userId = document.getElementById('change-password-user-id').value;
-    const newPassword = document.getElementById('new-password').value;
-    try {
-        const { error } = await _supabase.functions.invoke('admin-reset-user-password', { body: { userId, newPassword } });
-        if (error) throw error;
-        alert('Password updated.');
-        changePassModal.style.display = 'none';
-    } catch (error) { alert(`Failed: ${error.message}`); }
-});
+if (changePassForm) {
+    document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userId = document.getElementById('change-password-user-id').value;
+        const newPassword = document.getElementById('new-password').value;
+        try {
+            const { error } = await _supabase.functions.invoke('admin-reset-user-password', { body: { userId, newPassword } });
+            if (error) throw error;
+            alert('Password updated.');
+            changePassModal.style.display = 'none';
+        } catch (error) { alert(`Failed: ${error.message}`); }
+    });
+}
 
-document.getElementById('delete-user-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const targetUserId = document.getElementById('delete-user-id').value;
-    const adminPassword = document.getElementById('admin-password-confirm').value;
-    const { data: { user } } = await _supabase.auth.getUser();
-    
-    try {
-        const { error } = await _supabase.functions.invoke('admin-delete-user', { body: { targetUserId, adminEmail: user.email, adminPassword } });
-        if (error) throw error;
-        alert('User deleted.');
-        deleteUserModal.style.display = 'none';
-        loadUsers();
-    } catch (error) { alert(`Failed: ${error.message}`); }
-});
+if (deleteUserForm) {
+    document.getElementById('delete-user-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const targetUserId = document.getElementById('delete-user-id').value;
+        const adminPassword = document.getElementById('admin-password-confirm').value;
+        const { data: { user } } = await _supabase.auth.getUser();
+        
+        try {
+            const { error } = await _supabase.functions.invoke('admin-delete-user', { body: { targetUserId, adminEmail: user.email, adminPassword } });
+            if (error) throw error;
+            alert('User deleted.');
+            deleteUserModal.style.display = 'none';
+            loadUsers();
+        } catch (error) { alert(`Failed: ${error.message}`); }
+    });
+}
 
-document.getElementById('change-password-close').onclick = () => changePassModal.style.display = 'none';
-document.getElementById('delete-user-close').onclick = () => deleteUserModal.style.display = 'none';
+if (document.getElementById('change-password-close')) document.getElementById('change-password-close').onclick = () => changePassModal.style.display = 'none';
+if (document.getElementById('delete-user-close')) document.getElementById('delete-user-close').onclick = () => deleteUserModal.style.display = 'none';
 
 
 // --- INITIALIZATION ---
 checkAdminAccess();
-loadPositions(); // Load for default admin tab
-document.querySelector('button[data-tab="payroll-rules-tab"]').addEventListener('click', loadPayrollRules);
-document.querySelector('button[data-tab="union-rules-tab"]').addEventListener('click', loadUnionRules);
-document.querySelector('button[data-tab="templates-tab"]').addEventListener('click', loadTemplates);
-document.querySelector('button[data-tab="users-tab"]').addEventListener('click', loadUsers);
+
+// Only try to load these if we have access (otherwise they might 401 error)
+const role = import('./auth.js').then(m => {
+    const r = m.getUserRole();
+    if (r === 'admin' || r === 'manager') {
+        loadPositions();
+        loadPayrollRules();
+        loadUnionRules();
+        loadTemplates();
+    }
+    if (r === 'admin') {
+        loadUsers();
+    }
+});
