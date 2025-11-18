@@ -1,3 +1,5 @@
+import { getUserRole } from './auth.js'; // Import role checker
+
 const supabaseUrl = 'https://dblgrrusqxkdwgzyagtg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRibGdycnVzcXhrZHdnenlhZ3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0NDYzNTcsImV4cCI6MjA3NzAyMjM1N30.Au4AyxrxE0HzLqYWfMcUePMesbZTrfoIFF3Cp0RloWI';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
@@ -9,13 +11,9 @@ const parseTags = (tagString) => {
     return tagString.split(',').map(tag => tag.trim()).filter(tag => tag);
 };
 
-// Load positions for both add, edit, and filter forms
 async function loadPositions() {
     const { data: positions, error } = await _supabase.from('positions').select('*').order('name');
-    if (error) {
-        console.error('Error fetching positions:', error);
-        return;
-    }
+    if (error) { console.error('Error fetching positions:', error); return; }
     allPositions = positions;
     
     const addContainer = document.getElementById('positions-checkbox-container');
@@ -37,34 +35,31 @@ async function loadPositions() {
     if (filterSelect) filterSelect.innerHTML = filterOptionsHtml;
 }
 
-// --- NEW: Quick Add Position Logic ---
 async function quickAddPosition(inputId) {
     const input = document.getElementById(inputId);
     const name = input.value.trim();
-    
     if (!name) return alert("Please enter a position name.");
-    
-    // Insert into the shared positions table
     const { error } = await _supabase.from('positions').insert([{ name: name }]);
-    
-    if (error) {
-        alert(`Error adding position: ${error.message}`);
-    } else {
-        // Success: Clear input and reload checkboxes to show the new item
-        input.value = '';
-        loadPositions(); 
-    }
+    if (error) { alert(`Error adding position: ${error.message}`); } else { input.value = ''; loadPositions(); }
 }
 
-// Listeners for Quick Add buttons
 document.getElementById('quick-add-pos-btn-add').addEventListener('click', () => quickAddPosition('quick-pos-name-add'));
 document.getElementById('quick-add-pos-btn-edit').addEventListener('click', () => quickAddPosition('quick-pos-name-edit'));
 
-
-// --- Load Employees Logic (Same as before) ---
 async function loadFilteredEmployees() {
     const tableBody = document.getElementById('employee-list-table');
     tableBody.innerHTML = `<tr><td colspan="6">Loading employees...</td></tr>`;
+
+    // **NEW: Check Role**
+    const userRole = getUserRole();
+    const isPrivileged = userRole === 'admin' || userRole === 'manager';
+
+    // Hide/Show Table Headers based on role
+    const thAutobook = document.getElementById('th-autobook');
+    const thNotes = document.getElementById('th-notes');
+    
+    if (thAutobook) thAutobook.style.display = isPrivileged ? '' : 'none';
+    if (thNotes) thNotes.style.display = isPrivileged ? '' : 'none';
 
     const posId = document.getElementById('filter-position').value;
     const tag = document.getElementById('filter-tags').value;
@@ -82,12 +77,8 @@ async function loadFilteredEmployees() {
             .eq('employee_positions.position_id', posId)
             .order('full_name', { ascending: true });
     }
-    if (tag) {
-        query = query.ilike('tags', `%${tag}%`);
-    }
-    if (isUnion) {
-        query = query.eq('is_union_electrician', true);
-    }
+    if (tag) { query = query.ilike('tags', `%${tag}%`); }
+    if (isUnion) { query = query.eq('is_union_electrician', true); }
 
     const { data: employees, error } = await query;
 
@@ -105,30 +96,39 @@ async function loadFilteredEmployees() {
     tableBody.innerHTML = '';
     employees.forEach(employee => {
         const posNames = employee.employee_positions.map(ep => ep.positions.name).join(', ') || 'N/A';
+        
         let flagsHtml = '<div class="employee-flags">';
-        if (employee.is_last_option) flagsHtml += `<span class="flag-last-option">Last Option</span>`;
+        // **NEW: Only show internal flags to privileged users**
+        if (isPrivileged && employee.is_last_option) flagsHtml += `<span class="flag-last-option">Last Option</span>`;
+        // Union status is likely safe for everyone to see, but can be hidden if desired. Keeping it visible for now.
         if (employee.is_union_electrician) flagsHtml += `<span class="flag-union">Union</span>`;
         flagsHtml += '</div>';
+
+        // **NEW: Conditionally render columns**
+        const autoBookCell = isPrivileged ? `<td>${employee.is_autobook ? 'Yes' : 'No'}</td>` : '';
+        const notesCell = isPrivileged ? `<td>${employee.notes || ''}</td>` : '';
 
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><strong>${employee.full_name}</strong>${flagsHtml}</td>
             <td>${posNames}</td>
             <td><div class="contact-info"><span>${employee.email || 'N/A'}</span><span>${employee.phone || 'N/A'}</span></div></td>
-            <td>${employee.is_autobook ? 'Yes' : 'No'}</td>
-            <td>${employee.notes || ''}</td>
+            ${autoBookCell}
+            ${notesCell}
             <td>
-                <button class="btn btn-secondary edit-btn" data-employee-id="${employee.id}" style="padding: 0.5rem 1rem;">Edit</button>
-                <button class="btn btn-danger delete-btn" data-employee-id="${employee.id}">Delete</button>
+                ${isPrivileged ? `<button class="btn btn-secondary edit-btn" data-employee-id="${employee.id}" style="padding: 0.5rem 1rem;">Edit</button>` : ''}
+                ${isPrivileged ? `<button class="btn btn-danger delete-btn" data-employee-id="${employee.id}">Delete</button>` : ''}
             </td>
         `;
         tableBody.appendChild(row);
     });
-    addDeleteButtonListeners();
-    addEditButtonListeners();
+    
+    if (isPrivileged) {
+        addDeleteButtonListeners();
+        addEditButtonListeners();
+    }
 }
 
-// Add new employee
 function addEmployeeFormListener() {
     const form = document.getElementById('add-employee-form');
     if (!form) return;
@@ -157,7 +157,6 @@ function addEmployeeFormListener() {
     });
 }
 
-// Delete employee
 function addDeleteButtonListeners() {
     document.querySelectorAll('.delete-btn').forEach(button => {
         button.addEventListener('click', () => handleDeleteEmployee(button.dataset.employeeId));
@@ -174,7 +173,6 @@ async function handleDeleteEmployee(employeeId) {
     if (empError) { alert(`Failed to delete employee: ${empError.message}`); } else { alert('Employee deleted successfully.'); loadFilteredEmployees(); }
 }
 
-// Edit employee modal
 function addEditButtonListeners() {
     document.querySelectorAll('.edit-btn').forEach(button => {
         button.addEventListener('click', () => openEditModal(button.dataset.employeeId));
@@ -228,18 +226,15 @@ async function handleEditFormSubmit(event) {
     loadFilteredEmployees();
 }
 
-// --- Initial Load & Listeners ---
 loadPositions();
 loadFilteredEmployees();
 addEmployeeFormListener();
 document.getElementById('edit-modal-close-btn').onclick = () => { document.getElementById('edit-employee-modal').style.display = 'none'; };
 document.getElementById('edit-modal-cancel-btn').onclick = () => { document.getElementById('edit-employee-modal').style.display = 'none'; };
 document.getElementById('edit-employee-form').addEventListener('submit', handleEditFormSubmit);
-
 document.getElementById('add-employee-btn').addEventListener('click', () => { document.getElementById('add-employee-modal').style.display = 'flex'; });
 document.getElementById('add-modal-close-btn').onclick = () => { document.getElementById('add-employee-modal').style.display = 'none'; };
 document.getElementById('add-modal-cancel-btn').onclick = () => { document.getElementById('add-employee-modal').style.display = 'none'; };
-
 document.getElementById('filter-btn').addEventListener('click', loadFilteredEmployees);
 document.getElementById('reset-btn').addEventListener('click', () => {
     document.getElementById('filter-position').value = '';

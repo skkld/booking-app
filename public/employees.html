@@ -66,8 +66,8 @@
                             <th>Name & Flags</th>
                             <th>Positions</th>
                             <th>Contact</th>
-                            <th>Auto-Book</th>
-                            <th>Notes</th>
+                            <th id="th-autobook">Auto-Book</th>
+                            <th id="th-notes">Notes</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -87,17 +87,14 @@
                         <div class="form-group"><label for="full_name">Full Name</label><input type="text" id="full_name" name="full_name" required></div>
                         <div class="form-group"><label for="email">Email Address</label><input type="email" id="email" name="email"></div>
                         <div class="form-group"><label for="phone">Phone Number</label><input type="tel" id="phone" name="phone"></div>
-                        
                         <div class="form-group">
                             <label>Positions</label>
                             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <input type="text" id="quick-pos-name-add" placeholder="New Position Name" style="flex-grow: 1; padding: 0.4rem;">
                                 <button type="button" id="quick-add-pos-btn-add" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;">+</button>
                             </div>
-                            <div id="positions-checkbox-container" class="checkbox-group" style="max-height: 150px; overflow-y: auto;">
-                                </div>
+                            <div id="positions-checkbox-container" class="checkbox-group"></div>
                         </div>
-
                         <div class="form-group">
                             <label for="tags">Tags (comma-separated)</label>
                             <input type="text" id="tags" name="tags" placeholder="e.g. Team Lead, Rigger, V1">
@@ -127,17 +124,14 @@
                         <div class="form-group"><label for="edit_full_name">Full Name</label><input type="text" id="edit_full_name" name="full_name" required></div>
                         <div class="form-group"><label for="edit_email">Email Address</label><input type="email" id="edit_email" name="email"></div>
                         <div class="form-group"><label for="edit_phone">Phone Number</label><input type="tel" id="edit_phone" name="phone"></div>
-                        
                         <div class="form-group">
                             <label>Positions</label>
                             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <input type="text" id="quick-pos-name-edit" placeholder="New Position Name" style="flex-grow: 1; padding: 0.4rem;">
                                 <button type="button" id="quick-add-pos-btn-edit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;">+</button>
                             </div>
-                            <div id="edit-positions-checkbox-container" class="checkbox-group" style="max-height: 150px; overflow-y: auto;">
-                                </div>
+                            <div id="edit-positions-checkbox-container" class="checkbox-group"></div>
                         </div>
-
                         <div class="form-group">
                             <label for="edit_tags">Tags (comma-separated)</label>
                             <input type="text" id="edit_tags" name="tags" placeholder="e.g. Team Lead, Rigger, V1">
