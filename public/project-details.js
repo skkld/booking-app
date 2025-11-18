@@ -58,6 +58,24 @@ async function loadProjectDetails() {
     ]);
     
     const project = projectRes.data;
+    import { getUserRole } from './auth.js'; // Make sure to import this at the top!
+
+    // ... inside loadProjectDetails ...
+    
+    // --- ROLE CHECK ---
+    const role = getUserRole();
+    if (role === 'crew') {
+        // Hide Admin Buttons
+        const editProjBtn = document.querySelector('.project-header .btn-secondary');
+        const checkAvailBtn = document.getElementById('check-availability-btn');
+        const addShiftCard = document.getElementById('add-shift-form').closest('.card');
+        
+        if (editProjBtn) editProjBtn.style.display = 'none';
+        if (checkAvailBtn) checkAvailBtn.style.display = 'none';
+        if (addShiftCard) addShiftCard.style.display = 'none';
+        
+        // We also need to hide buttons inside the table, which we do in displayShifts
+    }
     allShifts = shiftsRes.data || [];
     allEmployees = employeesRes.data || [];
 
@@ -96,7 +114,18 @@ function displayShifts(shifts, allAssignments) {
     const container = document.getElementById('shifts-list-container');
     container.innerHTML = '';
     if (shifts.length === 0) { container.innerHTML = '<tr><td colspan="5">No shifts created.</td></tr>'; return; }
-    
+    const isPrivileged = getUserRole() !== 'crew';
+// ...
+<td rowspan="${totalSlots}">
+    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <a href="/call-sheet.html?shift_id=${shift.id}" target="_blank" class="btn btn-secondary">Call Sheet</a>
+
+        ${isPrivileged ? `<button class="btn btn-secondary btn-assign" ...>View/Assign</button>` : ''}
+        ${isPrivileged ? `<a href="/timesheet-entry.html?shift_id=${shift.id}" ...>Enter Times</a>` : ''}
+        ${isPrivileged ? `<button class="btn btn-secondary edit-shift-btn" ...>Edit</button>` : ''}
+        ${isPrivileged ? `<button class="btn btn-danger delete-shift-btn" ...>Delete</button>` : ''}
+    </div>
+</td>
     for (const shift of shifts) {
         const assignmentsForShift = allAssignments.filter(a => a.shift_id === shift.id);
         const totalSlots = shift.people_needed;
