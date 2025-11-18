@@ -12,7 +12,7 @@ loginForm.addEventListener('submit', async (event) => {
     const email = loginForm.elements.email.value;
     const password = loginForm.elements.password.value;
 
-    const { error } = await _supabase.auth.signInWithPassword({
+    const { data, error } = await _supabase.auth.signInWithPassword({
         email: email,
         password: password,
     });
@@ -21,7 +21,25 @@ loginForm.addEventListener('submit', async (event) => {
         errorBox.textContent = `Login Failed: ${error.message}`;
         errorBox.style.display = 'block';
     } else {
-        window.location.href = '/'; 
+        // --- NEW: Broadcast "Force Logout" to other devices ---
+        const userId = data.user.id;
+        const channel = _supabase.channel(`user_session_${userId}`);
+        
+        // Subscribe, send message, then redirect
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await channel.send({
+                    type: 'broadcast',
+                    event: 'force_logout',
+                    payload: { message: 'New login detected' },
+                });
+                
+                // Small delay to ensure message is sent before redirecting
+                setTimeout(() => {
+                    window.location.href = '/'; 
+                }, 500);
+            }
+        });
     }
 });
 

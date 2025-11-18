@@ -3,17 +3,14 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabaseUrl = 'https://dblgrrusqxkdwgzyagtg.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRibGdycnVzcXhrZHdnenlhZ3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0NDYzNTcsImV4cCI6MjA3NzAyMjM1N30.Au4AyxrxE0HzLqYWfMcUePMesbZTrfoIFF3Cp0RloWI';
 
-// 1. Create and export the Supabase client
 export const _supabase = createClient(supabaseUrl, supabaseKey);
 
-// 2. Check for a valid session
+// 1. Check Session
 const { data: { session } } = await _supabase.auth.getSession();
 
 if (!session) {
-    // No user is logged in. Redirect to the login page.
     window.location.href = '/login.html';
 } else {
-    // User is logged in. Now, find their employee profile and role.
     const { data: employee, error } = await _supabase
         .from('employees')
         .select('role')
@@ -24,12 +21,64 @@ if (!session) {
         console.error("Authenticated user has no matching employee profile.");
         localStorage.setItem('userRole', 'crew');
     } else {
-        // Success! Store the user's role locally.
         localStorage.setItem('userRole', employee.role);
+    }
+
+    // --- NEW: Initialize Mobile Menu ---
+    initMobileMenu();
+    
+    // --- NEW: Initialize Single Session Listener ---
+    initSingleSessionListener(session.user.id);
+}
+
+export function getUserRole() {
+    return localStorage.getItem('userRole') || 'crew';
+}
+
+// --- Mobile Menu Logic ---
+function initMobileMenu() {
+    // Only run if we are in a browser environment
+    if (typeof document === 'undefined') return;
+
+    // Inject the hamburger button into the header if it doesn't exist
+    const header = document.querySelector('.header');
+    if (header && !document.getElementById('mobile-menu-toggle')) {
+        const btn = document.createElement('button');
+        btn.id = 'mobile-menu-toggle';
+        btn.innerHTML = '&#9776;'; // Hamburger icon
+        // Insert as the very first item in the header
+        header.insertBefore(btn, header.firstChild);
+
+        // Add click listener
+        btn.addEventListener('click', () => {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('active');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            const sidebar = document.querySelector('.sidebar');
+            const btn = document.getElementById('mobile-menu-toggle');
+            if (window.innerWidth <= 768 && 
+                sidebar.classList.contains('active') && 
+                !sidebar.contains(e.target) && 
+                e.target !== btn) {
+                sidebar.classList.remove('active');
+            }
+        });
     }
 }
 
-// 3. Export a helper function
-export function getUserRole() {
-    return localStorage.getItem('userRole') || 'crew';
+// --- Single Session Logic ---
+function initSingleSessionListener(userId) {
+    // Listen for a 'force_logout' event on a channel specific to this user ID
+    const channel = _supabase.channel(`user_session_${userId}`);
+    
+    channel.on('broadcast', { event: 'force_logout' }, async (payload) => {
+        console.log('New login detected elsewhere. Logging out...');
+        alert('You have logged in from another device. This session will now close.');
+        await _supabase.auth.signOut();
+        window.location.href = '/login.html';
+    })
+    .subscribe();
 }
