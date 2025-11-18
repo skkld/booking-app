@@ -1,49 +1,107 @@
-import { _supabase } from './auth.js';
+const supabaseUrl = 'https://dblgrrusqxkdwgzyagtg.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRibGdycnVzcXhrZHdnenlhZ3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0NDYzNTcsImV4cCI6MjA3NzAyMjM1N30.Au4AyxrxE0HzLqYWfMcUePMesbZTrfoIFF3Cp0RloWI';
+const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 let allPositions = [];
+
 const parseTags = (tagString) => {
     if (!tagString) return [];
     return tagString.split(',').map(tag => tag.trim()).filter(tag => tag);
 };
+
+// Load positions for both add, edit, and filter forms
 async function loadPositions() {
     const { data: positions, error } = await _supabase.from('positions').select('*').order('name');
-    if (error) { console.error('Error fetching positions:', error); return; }
+    if (error) {
+        console.error('Error fetching positions:', error);
+        return;
+    }
     allPositions = positions;
+    
     const addContainer = document.getElementById('positions-checkbox-container');
     const editContainer = document.getElementById('edit-positions-checkbox-container');
     const filterSelect = document.getElementById('filter-position');
-    let checkboxesHtml = '', editCheckboxesHtml = '', filterOptionsHtml = '<option value="">Any Position</option>';
+    
+    let checkboxesHtml = '';
+    let editCheckboxesHtml = '';
+    let filterOptionsHtml = '<option value="">Any Position</option>';
+    
     allPositions.forEach(pos => {
         checkboxesHtml += `<div class="form-group-checkbox"><input type="checkbox" name="positions" value="${pos.id}" id="pos-${pos.id}"><label for="pos-${pos.id}">${pos.name}</label></div>`;
         editCheckboxesHtml += `<div class="form-group-checkbox"><input type="checkbox" name="edit_positions" value="${pos.id}" id="edit-pos-${pos.id}"><label for="edit-pos-${pos.id}">${pos.name}</label></div>`;
         filterOptionsHtml += `<option value="${pos.id}">${pos.name}</option>`;
     });
+    
     if (addContainer) addContainer.innerHTML = checkboxesHtml;
     if (editContainer) editContainer.innerHTML = editCheckboxesHtml;
     if (filterSelect) filterSelect.innerHTML = filterOptionsHtml;
 }
+
+// --- NEW: Quick Add Position Logic ---
+async function quickAddPosition(inputId) {
+    const input = document.getElementById(inputId);
+    const name = input.value.trim();
+    
+    if (!name) return alert("Please enter a position name.");
+    
+    // Insert into the shared positions table
+    const { error } = await _supabase.from('positions').insert([{ name: name }]);
+    
+    if (error) {
+        alert(`Error adding position: ${error.message}`);
+    } else {
+        // Success: Clear input and reload checkboxes to show the new item
+        input.value = '';
+        loadPositions(); 
+    }
+}
+
+// Listeners for Quick Add buttons
+document.getElementById('quick-add-pos-btn-add').addEventListener('click', () => quickAddPosition('quick-pos-name-add'));
+document.getElementById('quick-add-pos-btn-edit').addEventListener('click', () => quickAddPosition('quick-pos-name-edit'));
+
+
+// --- Load Employees Logic (Same as before) ---
 async function loadFilteredEmployees() {
     const tableBody = document.getElementById('employee-list-table');
     tableBody.innerHTML = `<tr><td colspan="6">Loading employees...</td></tr>`;
+
     const posId = document.getElementById('filter-position').value;
     const tag = document.getElementById('filter-tags').value;
     const isUnion = document.getElementById('filter-union').checked;
-    let query = _supabase.from('employees').select(`*, employee_positions!left(positions!employee_positions_position_id_fkey(name))`).order('full_name', { ascending: true });
+
+    let query = _supabase
+        .from('employees')
+        .select(`*, employee_positions!left(positions!employee_positions_position_id_fkey(name))`)
+        .order('full_name', { ascending: true });
+
     if (posId) {
-        query = _supabase.from('employees').select(`*, employee_positions!inner(positions!employee_positions_position_id_fkey(name))`).eq('employee_positions.position_id', posId).order('full_name', { ascending: true });
+        query = _supabase
+            .from('employees')
+            .select(`*, employee_positions!inner(positions!employee_positions_position_id_fkey(name))`)
+            .eq('employee_positions.position_id', posId)
+            .order('full_name', { ascending: true });
     }
-    if (tag) { query = query.ilike('tags', `%${tag}%`); }
-    if (isUnion) { query = query.eq('is_union_electrician', true); }
+    if (tag) {
+        query = query.ilike('tags', `%${tag}%`);
+    }
+    if (isUnion) {
+        query = query.eq('is_union_electrician', true);
+    }
+
     const { data: employees, error } = await query;
+
     if (error) {
         console.error('Error fetching employees:', error);
         tableBody.innerHTML = `<tr><td colspan="6">Error loading employees. See console.</td></tr>`;
         return;
     }
+    
     if (employees.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="6">No employees found matching your filters.</td></tr>`;
         return;
     }
+
     tableBody.innerHTML = '';
     employees.forEach(employee => {
         const posNames = employee.employee_positions.map(ep => ep.positions.name).join(', ') || 'N/A';
@@ -51,6 +109,7 @@ async function loadFilteredEmployees() {
         if (employee.is_last_option) flagsHtml += `<span class="flag-last-option">Last Option</span>`;
         if (employee.is_union_electrician) flagsHtml += `<span class="flag-union">Union</span>`;
         flagsHtml += '</div>';
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><strong>${employee.full_name}</strong>${flagsHtml}</td>
@@ -68,6 +127,8 @@ async function loadFilteredEmployees() {
     addDeleteButtonListeners();
     addEditButtonListeners();
 }
+
+// Add new employee
 function addEmployeeFormListener() {
     const form = document.getElementById('add-employee-form');
     if (!form) return;
@@ -95,6 +156,8 @@ function addEmployeeFormListener() {
         loadFilteredEmployees();
     });
 }
+
+// Delete employee
 function addDeleteButtonListeners() {
     document.querySelectorAll('.delete-btn').forEach(button => {
         button.addEventListener('click', () => handleDeleteEmployee(button.dataset.employeeId));
@@ -110,6 +173,8 @@ async function handleDeleteEmployee(employeeId) {
     const { error: empError } = await _supabase.from('employees').delete().eq('id', employeeId);
     if (empError) { alert(`Failed to delete employee: ${empError.message}`); } else { alert('Employee deleted successfully.'); loadFilteredEmployees(); }
 }
+
+// Edit employee modal
 function addEditButtonListeners() {
     document.querySelectorAll('.edit-btn').forEach(button => {
         button.addEventListener('click', () => openEditModal(button.dataset.employeeId));
@@ -162,15 +227,19 @@ async function handleEditFormSubmit(event) {
     document.getElementById('edit-employee-modal').style.display = 'none';
     loadFilteredEmployees();
 }
+
+// --- Initial Load & Listeners ---
 loadPositions();
 loadFilteredEmployees();
 addEmployeeFormListener();
 document.getElementById('edit-modal-close-btn').onclick = () => { document.getElementById('edit-employee-modal').style.display = 'none'; };
 document.getElementById('edit-modal-cancel-btn').onclick = () => { document.getElementById('edit-employee-modal').style.display = 'none'; };
 document.getElementById('edit-employee-form').addEventListener('submit', handleEditFormSubmit);
+
 document.getElementById('add-employee-btn').addEventListener('click', () => { document.getElementById('add-employee-modal').style.display = 'flex'; });
 document.getElementById('add-modal-close-btn').onclick = () => { document.getElementById('add-employee-modal').style.display = 'none'; };
 document.getElementById('add-modal-cancel-btn').onclick = () => { document.getElementById('add-employee-modal').style.display = 'none'; };
+
 document.getElementById('filter-btn').addEventListener('click', loadFilteredEmployees);
 document.getElementById('reset-btn').addEventListener('click', () => {
     document.getElementById('filter-position').value = '';
