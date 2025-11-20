@@ -11,7 +11,10 @@
 </head>
 <body>
     <nav class="sidebar">
-        <div class="sidebar-header"><img src="/assets/logo.png" alt="Booking App Logo" class="logo-img"><span>Booking App</span></div>
+        <div class="sidebar-header">
+            <img src="/assets/logo.png" alt="Booking App Logo" class="logo-img">
+            <span>Booking App</span>
+        </div>
         <ul class="sidebar-nav">
             <li class="nav-item"><a href="/" class="nav-link active">Dashboard</a></li>
             <li class="nav-item"><a href="/projects.html" class="nav-link">Projects</a></li>
@@ -22,33 +25,61 @@
             <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
         </ul>
     </nav>
+
     <main class="main-content">
         <header class="header">
             <h1>Dashboard Overview</h1>
-            <div class="header-actions"><a href="/create-project.html" class="btn btn-primary">+ Create Project</a></div>
+            <div class="header-actions">
+                <a href="/create-project.html" class="btn btn-primary">+ Create Project</a>
+            </div>
         </header>
+
         <div class="widget-grid">
             <div class="card card-span-2">
-                <div class="card-header"><h3>Timecards Awaiting Approval (<span id="pending-timecards-count">0</span>)</h3></div>
-                <div class="table-container"><table class="data-table"><thead><tr><th>Employee</th><th>Project/Shift</th><th>Submitted Hours</th><th>Actions</th></tr></thead><tbody id="timecard-summary-list"><tr><td colspan="4">No pending timecards.</td></tr></tbody></table></div>
-                <div class="card-footer"><a href="/timecards.html">View All Pending &rarr;</a></div>
+                <div class="card-header">
+                    <h3>Timecards Awaiting Approval (<span id="pending-timecards-count">0</span>)</h3>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Employee</th><th>Project/Shift</th><th>Submitted Hours</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="timecard-summary-list">
+                            <tr><td colspan="4">No pending timecards.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <a href="/timecards.html" class="btn btn-primary" style="display: block; text-align: center;">View All Pending &rarr;</a>
+                </div>
             </div>
+
             <div class="card">
-                <div class="card-header"><h3>Open Shifts (<span id="open-shifts-count">0</span>)</h3></div>
-                <ul id="open-shifts-list" class="list" style="padding: 0 1.5rem;"></ul>
-                <div class="card-footer"><a href="/open-shifts.html">View All Open Shifts &rarr;</a></div>
+                <div class="card-header">
+                    <h3>Open Shifts (<span id="open-shifts-count">0</span>)</h3>
+                </div>
+                <ul id="open-shifts-list" class="list" style="padding: 0 1.5rem;">
+                    </ul>
+                <div class="card-footer">
+                    <a href="/open-shifts.html" class="btn btn-primary" style="display: block; text-align: center;">View All Open Shifts &rarr;</a>
+                </div>
             </div>
+
             <div class="card">
                 <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>Upcoming Projects</h3>
                     <select id="project-date-filter" style="padding: 0.25rem 0.5rem; border-radius: 6px; border: 1px solid var(--border-color);">
-                        <option value="month" selected>This Month</option><option value="quarter">This Quarter</option><option value="year">This Year</option>
+                        <option value="month" selected>This Month</option>
+                        <option value="quarter">This Quarter</option>
+                        <option value="year">This Year</option>
                     </select>
                 </div>
-                <ul id="upcoming-projects-list" class="list" style="padding: 0 1.5rem;"></ul>
+                <ul id="upcoming-projects-list" class="list" style="padding: 0 1.5rem;">
+                    </ul>
             </div>
         </div>
     </main>
+
     <script type="module" src="/logout.js"></script>
     <script type="module" src="/dashboard.js"></script>
 </body>
