@@ -3,9 +3,6 @@ import { _supabase } from './auth.js';
 let companyRules = null;
 let unionRules = null;
 let allProjects = [];
-let allShifts = [];
-let allAssignments = [];
-let allEmployees = [];
 
 // --- PAYROLL CALCULATION ENGINE ---
 function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbursement) {
@@ -31,27 +28,21 @@ function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbu
         } else { 
             regular = netHours; 
         }
-        
-        // Night Premium (simplified)
-        const [nightStartHour] = rules.night_premium_start.split(':').map(Number);
-        const [nightEndHour] = rules.night_premium_end.split(':').map(Number);
-        if (clockIn.getHours() >= nightStartHour || clockIn.getHours() < nightEndHour) {
-            night = netHours; // Simplified for this example
-        }
     } else {
-        // Fallback if no rules found
-        regular = netHours;
+        regular = netHours; // Fallback
     }
 
     // CALCULATE TOTAL PAY ($)
-    // Formula: (Reg * Rate) + (OT * Rate * 1.5) + Reimbursements
-    const basePay = (regular * rate) + (overtime * rate * 1.5);
-    const totalPay = basePay + (reimbursement || 0);
+    // Ensure inputs are numbers. Default reimbursement to 0 if null.
+    const numRate = parseFloat(rate) || 0;
+    const numReimb = parseFloat(reimbursement) || 0;
+    
+    const basePay = (regular * numRate) + (overtime * numRate * 1.5);
+    const totalPay = basePay + numReimb;
 
     return { 
         regular: regular.toFixed(2), 
         overtime: overtime.toFixed(2), 
-        night: night.toFixed(2), 
         totalHours: netHours.toFixed(2),
         totalPay: totalPay.toFixed(2)
     };
@@ -127,50 +118,46 @@ async function loadTimecards() {
     document.querySelectorAll('.btn-reject').forEach(btn => btn.addEventListener('click', showRejectionModal));
 }
 
-// --- APPROVAL / REJECTION HANDLERS ---
+// ... (Include showRejectionModal, showManualEntryModal, etc. below as standard)
 function showRejectionModal(event) {
     document.getElementById('reject-entry-id').value = event.target.dataset.id;
     document.getElementById('rejection-modal').style.display = 'flex';
 }
-
 document.getElementById('rejection-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const id = document.getElementById('reject-entry-id').value;
     const notes = document.getElementById('reject-notes').value;
     if (!notes) return alert("Reason required.");
-    
     await _supabase.from('timecard_entries').update({ status: 'rejected', manager_notes: notes }).eq('id', id);
-    alert("Timecard rejected.");
     document.getElementById('rejection-modal').style.display = 'none';
     document.getElementById('rejection-form').reset();
     loadTimecards();
 });
-
 document.getElementById('reject-modal-close').onclick = () => { document.getElementById('rejection-modal').style.display = 'none'; };
 
-
-// --- MANUAL ENTRY LOGIC (RESTORED) ---
+// Manual Entry
 async function showManualEntryModal() {
-    // Fetch data for dropdowns
     const [projectsRes, shiftsRes, assignmentsRes, employeesRes] = await Promise.all([
         _supabase.from('projects').select('id, name, is_union_project').order('name'),
         _supabase.from('shifts').select('id, name, role, project_id'),
         _supabase.from('assignments').select('shift_id, employee_id'),
         _supabase.from('employees').select('id, full_name, rate')
     ]);
+    // ... (Assign results to globals) ...
+    const allProjectsLocal = projectsRes.data || [];
+    const allShiftsLocal = shiftsRes.data || [];
+    const allAssignmentsLocal = assignmentsRes.data || [];
+    const allEmployeesLocal = employeesRes.data || [];
     
-    // Update global caches
-    allProjects = projectsRes.data || [];
-    allShifts = shiftsRes.data || [];
-    allAssignments = assignmentsRes.data || [];
-    allEmployees = employeesRes.data || [];
+    // Store in globals for helper functions
+    allProjects = allProjectsLocal;
+    allShifts = allShiftsLocal;
+    allAssignments = allAssignmentsLocal;
+    allEmployees = allEmployeesLocal;
 
     const projectSelect = document.getElementById('project-select');
     projectSelect.innerHTML = '<option value="">Select a Project</option>';
-    allProjects.forEach(p => { projectSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
-    
-    document.getElementById('shift-select').innerHTML = '<option value="">Select a Project First</option>';
-    document.getElementById('employee-select').innerHTML = '<option value="">Select a Shift First</option>';
+    allProjectsLocal.forEach(p => { projectSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
     document.getElementById('manual-entry-modal').style.display = 'flex';
 }
 
@@ -180,7 +167,6 @@ function populateShifts(projectId) {
     const shiftsForProject = allShifts.filter(s => s.project_id == projectId);
     shiftsForProject.forEach(s => { shiftSelect.innerHTML += `<option value="${s.id}">${s.name} - ${s.role}</option>`; });
 }
-
 function populateEmployees(shiftId) {
     const employeeSelect = document.getElementById('employee-select');
     employeeSelect.innerHTML = '<option value="">Select an Employee</option>';
@@ -188,20 +174,18 @@ function populateEmployees(shiftId) {
     const assignedEmployees = allEmployees.filter(e => assignedEmployeeIds.includes(e.id));
     assignedEmployees.forEach(e => { employeeSelect.innerHTML += `<option value="${e.id}">${e.full_name}</option>`; });
 }
-
 async function handleManualEntrySubmit(event) {
     event.preventDefault();
     const form = event.target;
     const shiftId = form.elements['shift-select'].value;
     const employeeId = form.elements['employee-select'].value;
     const reimbAmount = parseFloat(document.getElementById('manual-reimb').value) || 0;
-
-    // Calculate pay
+    
     const shift = allShifts.find(s => s.id == shiftId);
     const project = allProjects.find(p => p.id == shift.project_id);
     const employee = allEmployees.find(e => e.id == employeeId);
-    
     const rules = project?.is_union_project ? unionRules : companyRules;
+    
     const clockIn = form.elements['clock-in'].value;
     const clockOut = form.elements['clock-out'].value;
     const isSunday = new Date(clockIn).getDay() === 0;
@@ -209,32 +193,19 @@ async function handleManualEntrySubmit(event) {
     const payroll = calculatePayroll(clockIn, clockOut, rules, isSunday, employee.rate || 0, reimbAmount);
 
     const newEntry = {
-        shift_id: shiftId,
-        employee_id: employeeId,
-        clock_in: new Date(clockIn).toISOString(),
-        clock_out: new Date(clockOut).toISOString(),
-        status: 'pending', // Submit as pending so it can be reviewed in the table
-        total_hours: payroll.totalHours,
-        total_pay: payroll.totalPay,
-        reimbursement_amount: reimbAmount
+        shift_id: shiftId, employee_id: employeeId,
+        clock_in: new Date(clockIn).toISOString(), clock_out: new Date(clockOut).toISOString(),
+        status: 'pending',
+        total_hours: payroll.totalHours, total_pay: payroll.totalPay, reimbursement_amount: reimbAmount
     };
-
     const { error } = await _supabase.from('timecard_entries').insert([newEntry]);
-    if (error) alert(`Error: ${error.message}`); 
-    else {
-        alert('Timecard created!');
-        document.getElementById('manual-entry-modal').style.display = 'none';
-        form.reset();
-        loadTimecards();
-    }
+    if(error) alert(error.message); else { document.getElementById('manual-entry-modal').style.display = 'none'; form.reset(); loadTimecards(); }
 }
 
-// --- LISTENERS ---
 document.getElementById('manual-entry-btn').addEventListener('click', showManualEntryModal);
 document.getElementById('manual-entry-close').onclick = () => { document.getElementById('manual-entry-modal').style.display = 'none'; };
 document.getElementById('manual-entry-form').addEventListener('submit', handleManualEntrySubmit);
 document.getElementById('project-select').addEventListener('change', (e) => populateShifts(e.target.value));
 document.getElementById('shift-select').addEventListener('change', (e) => populateEmployees(e.target.value));
 
-// Initial Load
 loadTimecards();

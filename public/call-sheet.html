@@ -7,7 +7,6 @@
     <script type="module" src="/auth.js"></script>
     <link rel="stylesheet" href="/styles.css">
     <style>
-        /* Print Styles */
         body { background-color: white; color: black; }
         .main-content { margin-left: 0; padding: 2rem; }
         .call-sheet-header { border-bottom: 2px solid black; padding-bottom: 1rem; margin-bottom: 1rem; }
@@ -19,7 +18,7 @@
 </head>
 <body>
     <main class="main-content">
-        <button onclick="window.print()" class="btn btn-primary print-btn">Print</button>
+        <button onclick="window.print()" class="btn btn-primary print-btn">Print / Save as PDF</button>
 
         <div class="call-sheet-header">
             <h1 id="project-name">Loading...</h1>
@@ -37,14 +36,7 @@
 
         <h2>Assigned Crew</h2>
         <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Role</th>
-                    <th>Phone</th>
-                    <th>Assignment Notes</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Assignment Notes</th></tr></thead>
             <tbody id="crew-list-table"></tbody>
         </table>
     </main>

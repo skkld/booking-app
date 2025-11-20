@@ -1,6 +1,4 @@
-const supabaseUrl = 'https://dblgrrusqxkdwgzyagtg.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRibGdycnVzcXhrZHdnenlhZ3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0NDYzNTcsImV4cCI6MjA3NzAyMjM1N30.Au4AyxrxE0HzLqYWfMcUePMesbZTrfoIFF3Cp0RloWI';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+import { _supabase } from './auth.js';
 
 function calculateHours(start, end) {
     if (!start || !end) return '0.00';
@@ -43,6 +41,7 @@ async function loadStaticDashboardData() {
 
 function displayPendingTimecards(timecards) {
     const container = document.getElementById('timecard-summary-list');
+    if (!container) return;
     document.getElementById('pending-timecards-count').textContent = timecards.length;
     
     if (timecards.length === 0) {
@@ -69,6 +68,7 @@ function displayPendingTimecards(timecards) {
 
 function displayOpenShifts(shifts, assignments) {
     const container = document.getElementById('open-shifts-list');
+    if (!container) return;
     const validShifts = shifts.filter(shift => shift.projects);
 
     const shiftsWithOpenings = validShifts.filter(shift => {
@@ -90,7 +90,6 @@ function displayOpenShifts(shifts, assignments) {
         
         const item = document.createElement('li');
         item.className = 'list-item-summary';
-        // **UPDATED: Color set to Yellow**
         item.innerHTML = `
             ${shift.projects.name} - ${shift.name} (${shift.role})
             <span style="float: right; color: #fbbf24; font-weight: 700;">Needs ${needed}</span>
@@ -101,6 +100,7 @@ function displayOpenShifts(shifts, assignments) {
 
 async function displayUpcomingProjects(filterValue) {
     const container = document.getElementById('upcoming-projects-list');
+    if (!container) return;
     container.innerHTML = `<li class="list-item-summary">Loading projects...</li>`;
 
     const { startDate, endDate } = getDateRange(filterValue);
@@ -136,14 +136,14 @@ async function displayUpcomingProjects(filterValue) {
     });
 }
 
-// Safe Event Listener
+// **FIX: Check if the element exists before adding listener**
 const dateFilter = document.getElementById('project-date-filter');
 if (dateFilter) {
     dateFilter.addEventListener('change', (event) => {
         const selectedFilter = event.target.value;
         displayUpcomingProjects(selectedFilter);
     });
+    displayUpcomingProjects('month'); // Load projects only if dashboard
 }
 
 loadStaticDashboardData();
-displayUpcomingProjects('month');
