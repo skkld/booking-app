@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Details</title>
-    
     <script type="module" src="/auth.js"></script>
-    
     <link rel="stylesheet" href="/styles.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
@@ -42,12 +40,12 @@
         <div class="card">
             <div class="card-body">
                 <div class="project-info-grid">
-                    <div class="info-item"><span>&#128100;</span> <div class="info-item-content"><strong>Client</strong><span id="client-name"></span></div></div>
-                    <div class="info-item"><span>&#128205;</span> <div class="info-item-content"><strong>Venue</strong><span id="venue-address"></span></div></div>
-                    <div class="info-item"><span>&#128222;</span> <div class="info-item-content"><strong>On-site Contact</strong><span id="on-site-contact"></span></div></div>
-                    <div class="info-item"><span>&#128084;</span> <div class="info-item-content"><strong>Dress Code</strong><span id="dress-code"></span></div></div>
-                    <div class="info-item"><span>&#128663;</span> <div class="info-item-content"><strong>Parking</strong><span id="parking-instructions"></span></div></div>
-                    <div class="info-item"><span>&#128196;</span> <div class="info-item-content"><strong>Notes</strong><span id="project-notes"></span></div></div>
+                    <div class="info-item"><div class="info-item-content"><strong>Client</strong><span id="client-name"></span></div></div>
+                    <div class="info-item"><div class="info-item-content"><strong>Venue</strong><span id="venue-address"></span></div></div>
+                    <div class="info-item"><div class="info-item-content"><strong>On-site Contact</strong><span id="on-site-contact"></span></div></div>
+                    <div class="info-item"><div class="info-item-content"><strong>Dress Code</strong><span id="dress-code"></span></div></div>
+                    <div class="info-item"><div class="info-item-content"><strong>Parking</strong><span id="parking-instructions"></span></div></div>
+                    <div class="info-item"><div class="info-item-content"><strong>Notes</strong><span id="project-notes"></span></div></div>
                     <div id="map" class="map-container"></div>
                 </div>
             </div>
@@ -57,7 +55,7 @@
             <div class="card-header"><h3>Shifts</h3></div>
             <div class="table-container">
                 <table class="data-table">
-                    <thead><tr><th>Shift Name</th><th>Role</th><th>Time</th><th>Assigned Crew</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Shift Name</th><th>Role</th><th>Date & Time</th><th>Assigned Crew</th><th>Actions</th></tr></thead>
                     <tbody id="shifts-list-container"></tbody>
                 </table>
             </div>
@@ -72,7 +70,7 @@
                     <div class="form-group"><label for="start_time">Start Time</label><input type="datetime-local" id="start_time" name="start_time" required></div>
                     <div class="form-group"><label for="end_time">End Time</label><input type="datetime-local" id="end_time" name="end_time" required></div>
                 </div>
-                <hr style="margin: 1.5rem 0; border-color: var(--border-color);">
+                <hr style="margin: 1.5rem 0;">
                 <h4>Roles for this Shift</h4>
                 <div id="roles-container"></div>
                 <button type="button" id="add-role-btn" class="btn btn-secondary" style="margin-top: 1rem;">+ Add Role</button>
@@ -87,7 +85,11 @@
                     <div class="assignment-columns-3">
                         <div class="assignment-column"><h4>Available</h4><ul id="available-employees-list" class="crew-list"></ul></div>
                         <div class="assignment-column"><h4>Assigned</h4><ul id="assigned-employees-list" class="crew-list"></ul></div>
-                        <div class="assignment-column"><h4>Unavailable / Pending</h4><ul id="unavailable-employees-list" class="crew-list"></ul><div class="add-crew-footer"><a href="/employees.html" id="add-crew-link" class="btn btn-primary">+ Add New Crew</a></div></div>
+                        <div class="assignment-column">
+                            <h4>Unavailable / Pending</h4>
+                            <ul id="unavailable-employees-list" class="crew-list"></ul>
+                            <div class="add-crew-footer"><a href="/employees.html" id="add-crew-link" class="btn btn-primary">+ Add New Crew</a></div>
+                        </div>
                     </div>
                 </div>
             </div>

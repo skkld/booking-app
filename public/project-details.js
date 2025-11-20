@@ -121,7 +121,7 @@ function displayProjectHeader(project) {
     }
 }
 
-// **Group Shifts by Date**
+// **UPDATED: Group Shifts by Date**
 function displayShifts(shifts, allAssignments) {
     const container = document.getElementById('shifts-list-container');
     container.innerHTML = '';
@@ -171,7 +171,7 @@ function displayShifts(shifts, allAssignments) {
                         actionsHtml = `
                             <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
                                 <button class="btn btn-secondary btn-assign" data-shift-id="${shift.id}" data-shift-role="${shift.role}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Assign</button>
-                                <a href="/timesheet-entry.html?shift_id=${shift.id}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Time</a>
+                                <a href="/timesheet-entry.html?shift_id=${shift.id}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Enter Times</a>
                                 ${actionsHtml}
                                 <button class="btn btn-secondary edit-shift-btn" data-shift-id="${shift.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
                                 <button class="btn btn-danger delete-shift-btn" data-shift-id="${shift.id}" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Del</button>
@@ -216,7 +216,7 @@ function addShiftFormListener(projectId) {
     const addRoleBtn = document.getElementById('add-role-btn');
     const newAddRoleBtn = addRoleBtn.cloneNode(true);
     addRoleBtn.parentNode.replaceChild(newAddRoleBtn, addRoleBtn);
-    newAddRoleBtn.addEventListener('click', addRoleField);
+    newAddRoleBtn.addEventListener('click', () => container.appendChild(createRoleField()));
     
     // Ensure container is clear then add one
     document.getElementById('roles-container').innerHTML = '';
@@ -224,33 +224,35 @@ function addShiftFormListener(projectId) {
 
     const newForm = form.cloneNode(true);
     form.parentNode.replaceChild(newForm, form);
-
     newForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const shiftName = newForm.elements.shift_name.value;
         const startTime = new Date(newForm.elements.start_time.value).toISOString();
         const endTime = new Date(newForm.elements.end_time.value).toISOString();
         const location = newForm.elements.shift_location.value;
-        
         const newShifts = [];
         newForm.querySelectorAll('.role-entry').forEach(entry => {
-            newShifts.push({
-                project_id: projectId, name: shiftName,
-                role: entry.querySelector('.role-name-input').value,
-                people_needed: parseInt(entry.querySelector('.role-qty-input').value),
-                start_time: startTime, end_time: endTime, location_address: location
-            });
+            newShifts.push({ project_id: projectId, name: shiftName, role: entry.querySelector('.role-name-input').value, people_needed: parseInt(entry.querySelector('.role-qty-input').value), start_time: startTime, end_time: endTime, location_address: location });
         });
         const { error } = await _supabase.from('shifts').insert(newShifts);
         if (error) alert(error.message); else { 
             alert('Shifts added successfully!'); 
             newForm.reset(); 
             document.getElementById('roles-container').innerHTML = '';
-            addRoleField();
+            addRoleFieldToMainForm();
             if(locationInput) locationInput.value = projectVenueAddress;
             loadProjectDetails(); 
         }
     });
+}
+// Helper to reset the main form
+function addRoleFieldToMainForm() {
+    const container = document.getElementById('roles-container');
+    const div = document.createElement('div');
+    div.className = 'role-entry';
+    div.innerHTML = `<div class="form-group"><input type="text" class="role-name-input" placeholder="Role" required></div><div class="form-group"><input type="number" class="role-qty-input" placeholder="#" required></div><button type="button" class="btn btn-danger remove-role-btn">&times;</button>`;
+    div.querySelector('.remove-role-btn').addEventListener('click', () => div.remove());
+    container.appendChild(div);
 }
 
 function setupEditModalListeners() {
@@ -315,10 +317,10 @@ async function handleEditShiftSubmit(event) {
     const shiftId = form.elements['edit-shift-id'].value;
     const updatedShift = {
         name: form.elements.edit_shift_name.value,
-        role: form.elements.edit_role.value,
+        role: form.querySelector('.existing-role-entry .role-name-input').value,
         start_time: new Date(form.elements.edit_start_time.value).toISOString(),
         end_time: new Date(form.elements.edit_end_time.value).toISOString(),
-        people_needed: parseInt(form.elements.edit_people_needed.value),
+        people_needed: parseInt(form.querySelector('.existing-role-entry .role-qty-input').value),
         location_address: form.elements.edit_location_address.value
     };
     const { error } = await _supabase.from('shifts').update(updatedShift).eq('id', shiftId);
@@ -349,7 +351,8 @@ async function handleDeleteShift(shiftId) {
     await _supabase.from('assignments').delete().eq('shift_id', shiftId);
     await _supabase.from('timecard_entries').delete().eq('shift_id', shiftId);
     const { error } = await _supabase.from('shifts').delete().eq('id', shiftId);
-    if (error) alert(error.message); else loadProjectDetails();
+    if (error) alert(`Error deleting shift: ${error.message}`);
+    else loadProjectDetails();
 }
 
 function handlePageLoadActions() {
@@ -372,6 +375,7 @@ function addCheckAvailabilityListener() {
 
 function addAssignButtonListeners() { document.querySelectorAll('.btn-assign').forEach(btn => btn.addEventListener('click', () => openAssignmentModal(btn.dataset.shiftId, btn.dataset.shiftRole))); }
 
+// **UPDATED: CORRECT AVAILABILITY LOGIC**
 async function openAssignmentModal(shiftId, shiftRole) {
     const modal = document.getElementById('assignment-modal');
     document.getElementById('modal-title').textContent = `Assign Crew for: ${shiftRole}`;
@@ -423,7 +427,7 @@ async function openAssignmentModal(shiftId, shiftRole) {
             unavailableList.appendChild(item);
         } 
         else {
-            // 3. AVAILABLE (Everyone else)
+            // 3. AVAILABLE (Everyone else: Yes, Pending, or Never Asked)
             if (request?.status === 'available') {
                 item.innerHTML = '✅ ' + nameHtml;
             } else if (request?.status === 'sent') {
