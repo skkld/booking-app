@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script type="module" src="/auth.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Open Shifts</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script type="module" src="/auth.js"></script>
+    
     <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <nav class="sidebar">
@@ -17,12 +17,13 @@
             <span>Booking App</span>
         </div>
         <ul class="sidebar-nav">
-            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li></ul></nav><script type="module" src="/logout.js"></script>
             <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
-            <li class="nav-item"><a href="/projects.html" class="nav-link active">Projects</a></li>
+            <li class="nav-item"><a href="/projects.html" class="nav-link">Projects</a></li>
+            <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
             <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
             <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
             <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
         </ul>
     </nav>
 
@@ -51,9 +52,8 @@
             </div>
         </div>
     </main>
-    <script type="module" src="/open-shifts.js"></script>
-</main> <script type="module" src="/logout.js"></script>
     
-    <script type="module" src="/dashboard.js"></script>
+    <script type="module" src="/logout.js"></script>
+    <script type="module" src="/open-shifts.js"></script>
 </body>
 </html>

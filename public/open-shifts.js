@@ -16,9 +16,8 @@ async function loadOpenShifts() {
 
     // Filter to find shifts that are not fully staffed
     const openShifts = shifts.filter(shift => {
-        // **FIX: Check if the shift's project exists before proceeding**
         if (!shift.projects) {
-            return false; // Skip this orphan shift
+            return false; // Skip orphan shifts
         }
         const assignedCount = shift.assignments[0]?.count || 0;
         return assignedCount < shift.people_needed;
@@ -41,7 +40,7 @@ async function loadOpenShifts() {
             <td><strong>${shift.name}</strong></td>
             <td>${shift.role}</td>
             <td>${startTime}</td>
-            <td><span style="color: var(--danger); font-weight: 600;">${needsCount}</span></td>
+            <td><span style="color: var(--status-yellow-text); font-weight: 600;">${needsCount}</span></td>
             <td>
                 <a href="/project-details.html?id=${shift.projects.id}" class="btn btn-secondary" style="padding: 0.5rem 1rem;">Go to Project</a>
             </td>
