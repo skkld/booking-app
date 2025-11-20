@@ -27,8 +27,28 @@ async function loadPositions() {
     let filterOptionsHtml = '<option value="">Any Position</option>';
     
     allPositions.forEach(pos => {
-        checkboxesHtml += `<div class="form-group-checkbox"><input type="checkbox" name="positions" value="${pos.id}" id="pos-${pos.id}"><label for="pos-${pos.id}">${pos.name}</label></div>`;
-        editCheckboxesHtml += `<div class="form-group-checkbox"><input type="checkbox" name="edit_positions" value="${pos.id}" id="edit-pos-${pos.id}"><label for="edit-pos-${pos.id}">${pos.name}</label></div>`;
+        const defaultRateHint = pos.default_rate ? `($${pos.default_rate})` : '';
+        
+        // HTML for Add Modal
+        checkboxesHtml += `
+            <div class="position-row">
+                <div class="position-label">
+                    <input type="checkbox" name="positions" value="${pos.id}" id="pos-${pos.id}" class="pos-checkbox">
+                    <label for="pos-${pos.id}">${pos.name} <small style="color:var(--text-muted)">${defaultRateHint}</small></label>
+                </div>
+                <input type="number" class="position-rate-input" data-pos-id="${pos.id}" placeholder="Rate" step="0.01">
+            </div>`;
+            
+        // HTML for Edit Modal
+        editCheckboxesHtml += `
+            <div class="position-row">
+                <div class="position-label">
+                    <input type="checkbox" name="edit_positions" value="${pos.id}" id="edit-pos-${pos.id}" class="pos-checkbox">
+                    <label for="edit-pos-${pos.id}">${pos.name} <small style="color:var(--text-muted)">${defaultRateHint}</small></label>
+                </div>
+                <input type="number" class="position-rate-input" id="edit-rate-${pos.id}" placeholder="Rate" step="0.01">
+            </div>`;
+            
         filterOptionsHtml += `<option value="${pos.id}">${pos.name}</option>`;
     });
     
@@ -57,7 +77,6 @@ async function loadFilteredEmployees() {
     const userRole = getUserRole();
     const isPrivileged = userRole === 'admin' || userRole === 'manager';
 
-    // Hide/Show Admin Elements
     const thAutobook = document.getElementById('th-autobook');
     const thNotes = document.getElementById('th-notes');
     const addBtn = document.getElementById('add-employee-btn');
@@ -70,6 +89,8 @@ async function loadFilteredEmployees() {
     const tag = document.getElementById('filter-tags').value;
     const isUnion = document.getElementById('filter-union').checked;
 
+    // We need the employee_positions to display the specific rates, but for the main table view,
+    // we will just list the position names to keep it clean.
     let query = _supabase
         .from('employees')
         .select(`*, employee_positions!left(positions!employee_positions_position_id_fkey(name))`)
@@ -97,8 +118,7 @@ async function loadFilteredEmployees() {
 
         const autoBookCell = isPrivileged ? `<td>${employee.is_autobook ? 'Yes' : 'No'}</td>` : '';
         const notesCell = isPrivileged ? `<td>${employee.notes || ''}</td>` : '';
-        // New Rate Cell
-        const rateCell = isPrivileged ? `<td>${employee.rate ? '$'+Number(employee.rate).toFixed(2) : '-'}</td>` : `<td>-</td>`;
+        const rateCell = isPrivileged ? `<td>${employee.rate ? '$'+Number(employee.rate).toFixed(2) : '(Var)'}</td>` : `<td>-</td>`;
 
         const canEdit = isPrivileged || (currentUserId && employee.user_id === currentUserId);
         const canDelete = isPrivileged;
@@ -119,10 +139,8 @@ async function loadFilteredEmployees() {
         tableBody.appendChild(row);
     });
     
-    addEditButtonListeners(); // Attach Listeners Here
-    if (isPrivileged) {
-        addDeleteButtonListeners();
-    }
+    addEditButtonListeners();
+    if (isPrivileged) addDeleteButtonListeners();
 }
 
 function addEmployeeFormListener() {
@@ -136,14 +154,29 @@ function addEmployeeFormListener() {
             full_name: formData.get('full_name'), email: formData.get('email'), phone: formData.get('phone'),
             notes: formData.get('notes'), is_autobook: formData.get('is_autobook') === 'on',
             is_last_option: formData.get('is_last_option') === 'on', is_union_electrician: formData.get('is_union_electrician') === 'on',
-            tags: tags, rate: formData.get('rate') || null
+            tags: tags, rate: formData.get('rate') || null // Base Rate
         };
+        
         const { data: newEmployee, error: empError } = await _supabase.from('employees').insert(employeeData).select().single();
         if (empError) return alert(`Failed to save: ${empError.message}`);
         
-        const selectedPositionIds = Array.from(form.querySelectorAll('input[name="positions"]:checked')).map(cb => cb.value);
-        if (selectedPositionIds.length > 0) {
-            const positionLinks = selectedPositionIds.map(posId => ({ employee_id: newEmployee.id, position_id: posId }));
+        // **UPDATED: Collect Checked Positions AND their Specific Rates**
+        const positionLinks = [];
+        form.querySelectorAll('input[name="positions"]:checked').forEach(checkbox => {
+            const posId = checkbox.value;
+            // Find the sibling input with class 'position-rate-input' inside the same row
+            const row = checkbox.closest('.position-row');
+            const rateInput = row.querySelector('.position-rate-input');
+            const specificRate = rateInput.value ? parseFloat(rateInput.value) : null;
+            
+            positionLinks.push({ 
+                employee_id: newEmployee.id, 
+                position_id: posId,
+                hourly_rate: specificRate
+            });
+        });
+
+        if (positionLinks.length > 0) {
             await _supabase.from('employee_positions').insert(positionLinks);
         }
         alert('Employee added!');
@@ -173,8 +206,14 @@ function addEditButtonListeners() {
 }
 
 async function openEditModal(employeeId) {
-    const { data: employee, error } = await _supabase.from('employees').select('*, employee_positions(position_id)').eq('id', employeeId).single();
-    if (error) return alert('Could not fetch employee data.');
+    // **UPDATED: Fetch positions WITH the override rate**
+    const { data: employee, error } = await _supabase
+        .from('employees')
+        .select('*, employee_positions(position_id, hourly_rate)')
+        .eq('id', employeeId)
+        .single();
+        
+    if (error) return alert('Could not fetch data.');
     
     const form = document.getElementById('edit-employee-form');
     const userRole = getUserRole();
@@ -185,15 +224,14 @@ async function openEditModal(employeeId) {
     form.elements.email.value = employee.email;
     form.elements.phone.value = employee.phone;
     
-    // Handle Rate Field
     if (form.elements.rate) {
         form.elements.rate.value = employee.rate;
         form.elements.rate.closest('.form-group').style.display = isPrivileged ? 'flex' : 'none';
     }
     
-    // Populate sensitive fields
-    const tagsSection = document.getElementById('edit-modal-tags-section'); // Note: If you removed IDs in HTML, these might need checking
-    // For safety, we assume standard structure if IDs are missing from HTML update
+    const tagsSection = document.getElementById('edit-modal-tags-section'); // Assuming IDs from previous fix exist
+    // If these IDs are missing in HTML, these lines might fail silently or need checks.
+    // We assume the HTML from previous steps is used.
     
     if (isPrivileged) {
         form.elements.notes.value = employee.notes;
@@ -201,17 +239,28 @@ async function openEditModal(employeeId) {
         form.elements.is_autobook.checked = employee.is_autobook;
         form.elements.is_last_option.checked = employee.is_last_option;
         form.elements.is_union_electrician.checked = employee.is_union_electrician;
-        
-        // Make sure containers are visible if they have IDs
-        // (Based on your latest HTML, these fields are just in the form directly)
     } 
 
+    // Reset UI
     form.querySelectorAll('input[name="edit_positions"]').forEach(cb => cb.checked = false);
-    const currentPositionIds = employee.employee_positions.map(ep => ep.position_id);
-    currentPositionIds.forEach(posId => {
-        const checkbox = form.querySelector(`input[name="edit_positions"][value="${posId}"]`);
-        if (checkbox) checkbox.checked = true;
-    });
+    form.querySelectorAll('.position-rate-input').forEach(input => input.value = '');
+
+    // **UPDATED: Populate Checkboxes AND Rates**
+    if (employee.employee_positions) {
+        employee.employee_positions.forEach(link => {
+            const checkbox = form.querySelector(`input[name="edit_positions"][value="${link.position_id}"]`);
+            if (checkbox) {
+                checkbox.checked = true;
+                // Find the sibling rate input
+                const row = checkbox.closest('.position-row');
+                const rateInput = row.querySelector('.position-rate-input');
+                if (rateInput && link.hourly_rate) {
+                    rateInput.value = link.hourly_rate;
+                }
+            }
+        });
+    }
+    
     document.getElementById('edit-employee-modal').style.display = 'flex';
 }
 
@@ -241,21 +290,34 @@ async function handleEditFormSubmit(event) {
     const { error: empError } = await _supabase.from('employees').update(employeeData).eq('id', employeeId);
     if (empError) return alert(`Error: ${empError.message}`);
 
+    // **UPDATED: Save Positions AND Rates**
     const { error: deletePosError } = await _supabase.from('employee_positions').delete().eq('employee_id', employeeId);
     if (deletePosError) return alert(`Error: ${deletePosError.message}`);
     
-    const selectedPositionIds = Array.from(form.querySelectorAll('input[name="edit_positions"]:checked')).map(cb => cb.value);
-    if (selectedPositionIds.length > 0) {
-        const positionLinks = selectedPositionIds.map(posId => ({ employee_id: employeeId, position_id: posId }));
+    const positionLinks = [];
+    form.querySelectorAll('input[name="edit_positions"]:checked').forEach(checkbox => {
+        const posId = checkbox.value;
+        const row = checkbox.closest('.position-row');
+        const rateInput = row.querySelector('.position-rate-input');
+        const specificRate = rateInput.value ? parseFloat(rateInput.value) : null;
+        
+        positionLinks.push({ 
+            employee_id: employeeId, 
+            position_id: posId,
+            hourly_rate: specificRate 
+        });
+    });
+
+    if (positionLinks.length > 0) {
         await _supabase.from('employee_positions').insert(positionLinks);
     }
     
-    alert('Updated successfully!');
+    alert('Updated!');
     document.getElementById('edit-employee-modal').style.display = 'none';
     loadFilteredEmployees();
 }
 
-// --- Initial Load ---
+// --- Initial Load & Listeners ---
 loadPositions();
 loadFilteredEmployees();
 addEmployeeFormListener();

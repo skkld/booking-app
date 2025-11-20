@@ -332,4 +332,39 @@ input[type="checkbox"] {
     margin-top: 1.5rem;
     border: 1px solid var(--border-color);
     overflow: hidden;
+}/* --- Position Rate Overrides --- */
+.position-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    gap: 1rem;
+}
+
+.position-row:last-child {
+    border-bottom: none;
+}
+
+.position-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-grow: 1;
+}
+
+.position-rate-input {
+    width: 100px !important; /* Override default width */
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+    background-color: var(--bg-body);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    /* Hide by default, show when checked (handled via JS or just always show) */
+}
+
+.checkbox-group {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: var(--bg-input);
 }
