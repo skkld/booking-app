@@ -3,7 +3,11 @@ import { _supabase } from './auth.js';
 let companyRules = null;
 let unionRules = null;
 let allProjects = [];
+let allShifts = [];
+let allAssignments = [];
+let allEmployees = [];
 
+// --- PAYROLL CALCULATION ENGINE ---
 function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbursement) {
     const clockIn = new Date(clockInStr);
     const clockOut = new Date(clockOutStr);
@@ -23,8 +27,12 @@ function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbu
         regular = netHours; 
     }
 
-    const hourlyPay = (regular * rate) + (overtime * rate * 1.5);
-    const totalPay = hourlyPay + (reimbursement || 0);
+    // Ensure rate is a number
+    const payRate = parseFloat(rate) || 0;
+    const reimb = parseFloat(reimbursement) || 0;
+
+    const hourlyPay = (regular * payRate) + (overtime * payRate * 1.5);
+    const totalPay = hourlyPay + reimb;
 
     return { 
         regular: regular.toFixed(2), 
@@ -34,6 +42,7 @@ function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbu
     };
 }
 
+// --- MAIN DISPLAY FUNCTION ---
 async function loadTimecards() {
     if (!companyRules) { const { data } = await _supabase.from('payroll_rules').select('*').eq('id', 1).single(); companyRules = data; }
     if (!unionRules) { const { data } = await _supabase.from('union_payroll_rules').select('*').eq('id', 1).single(); unionRules = data; }
@@ -46,11 +55,11 @@ async function loadTimecards() {
         .eq('status', 'pending')
         .order('clock_in', { ascending: false });
 
-    if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="8">Error.</td></tr>`; return; }
+    if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="9">Error loading timecards.</td></tr>`; return; }
     
     document.getElementById('pending-count').textContent = entries.length;
     if (entries.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="8">No pending timecards.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9">No pending timecards.</td></tr>`;
         return;
     }
 
@@ -76,6 +85,7 @@ async function loadTimecards() {
             <td>${payroll.overtime}</td>
             <td>$${reimb.toFixed(2)}</td>
             <td style="color: var(--primary-color); font-weight: bold;">$${payroll.totalPay}</td>
+            <td><span style="color: var(--status-yellow-text);">Pending</span></td>
             <td>
                 <button class="btn btn-primary btn-approve" data-id="${entry.id}" data-total="${payroll.totalPay}">Approve</button>
                 <button class="btn btn-danger btn-reject" data-id="${entry.id}">Reject</button>
@@ -110,20 +120,89 @@ document.getElementById('rejection-form').addEventListener('submit', async (even
 });
 document.getElementById('reject-modal-close').onclick = () => { document.getElementById('rejection-modal').style.display = 'none'; };
 
-// Manual Entry Logic
-// (Include full manual entry code here from previous working versions. Abbreviated for length, but logic matches handleManualEntrySubmit adding reimbursement)
-async function showManualEntryModal() { /* ...same... */ document.getElementById('manual-entry-modal').style.display = 'flex'; }
-async function handleManualEntrySubmit(e) { 
-    e.preventDefault(); 
-    /* ... standard fetch ... */ 
-    const reimbAmount = parseFloat(document.getElementById('manual-reimb').value) || 0;
-    /* ... calculation ... */
-    /* ... insert with reimbursement_amount: reimbAmount ... */
-    /* ... close modal ... */
+// --- MANUAL ENTRY LOGIC ---
+async function showManualEntryModal() {
+    const [projectsRes, shiftsRes, assignmentsRes, employeesRes] = await Promise.all([
+        _supabase.from('projects').select('id, name, is_union_project').order('name'),
+        _supabase.from('shifts').select('id, name, role, project_id'),
+        _supabase.from('assignments').select('shift_id, employee_id'),
+        _supabase.from('employees').select('id, full_name, rate') // Ensuring rate is fetched
+    ]);
+    
+    allProjects = projectsRes.data || [];
+    allShifts = shiftsRes.data || [];
+    allAssignments = assignmentsRes.data || [];
+    allEmployees = employeesRes.data || [];
+
+    const projectSelect = document.getElementById('project-select');
+    projectSelect.innerHTML = '<option value="">Select a Project</option>';
+    allProjects.forEach(p => { projectSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`; });
+    
+    document.getElementById('shift-select').innerHTML = '<option value="">Select a Project First</option>';
+    document.getElementById('employee-select').innerHTML = '<option value="">Select a Shift First</option>';
+    document.getElementById('manual-entry-modal').style.display = 'flex';
 }
-// Add Listeners
+
+function populateShifts(projectId) {
+    const shiftSelect = document.getElementById('shift-select');
+    shiftSelect.innerHTML = '<option value="">Select a Shift</option>';
+    const shiftsForProject = allShifts.filter(s => s.project_id == projectId);
+    shiftsForProject.forEach(s => { shiftSelect.innerHTML += `<option value="${s.id}">${s.name} - ${s.role}</option>`; });
+}
+
+function populateEmployees(shiftId) {
+    const employeeSelect = document.getElementById('employee-select');
+    employeeSelect.innerHTML = '<option value="">Select an Employee</option>';
+    const assignedEmployeeIds = allAssignments.filter(a => a.shift_id == shiftId).map(a => a.employee_id);
+    const assignedEmployees = allEmployees.filter(e => assignedEmployeeIds.includes(e.id));
+    assignedEmployees.forEach(e => { employeeSelect.innerHTML += `<option value="${e.id}">${e.full_name}</option>`; });
+}
+
+async function handleManualEntrySubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const shiftId = form.elements['shift-select'].value;
+    const employeeId = form.elements['employee-select'].value;
+    const reimbAmount = parseFloat(document.getElementById('manual-reimb').value) || 0;
+
+    const shift = allShifts.find(s => s.id == shiftId);
+    const project = allProjects.find(p => p.id == shift.project_id);
+    
+    // **FIX: Find employee object to get their rate**
+    const employee = allEmployees.find(e => e.id == employeeId);
+    
+    const rules = project?.is_union_project ? unionRules : companyRules;
+    const clockIn = form.elements['clock-in'].value;
+    const clockOut = form.elements['clock-out'].value;
+    const isSunday = new Date(clockIn).getDay() === 0;
+    
+    const payroll = calculatePayroll(clockIn, clockOut, rules, isSunday, employee.rate || 0, reimbAmount);
+
+    const newEntry = {
+        shift_id: shiftId,
+        employee_id: employeeId,
+        clock_in: new Date(clockIn).toISOString(),
+        clock_out: new Date(clockOut).toISOString(),
+        status: 'pending',
+        total_hours: payroll.totalHours,
+        total_pay: payroll.totalPay,
+        reimbursement_amount: reimbAmount
+    };
+
+    const { error } = await _supabase.from('timecard_entries').insert([newEntry]);
+    if (error) alert(`Error: ${error.message}`); 
+    else {
+        alert('Timecard created!');
+        document.getElementById('manual-entry-modal').style.display = 'none';
+        form.reset();
+        loadTimecards();
+    }
+}
+
 document.getElementById('manual-entry-btn').addEventListener('click', showManualEntryModal);
 document.getElementById('manual-entry-close').onclick = () => { document.getElementById('manual-entry-modal').style.display = 'none'; };
-// document.getElementById('manual-entry-form').addEventListener('submit', handleManualEntrySubmit);
+document.getElementById('manual-entry-form').addEventListener('submit', handleManualEntrySubmit);
+document.getElementById('project-select').addEventListener('change', (e) => populateShifts(e.target.value));
+document.getElementById('shift-select').addEventListener('change', (e) => populateEmployees(e.target.value));
 
 loadTimecards();
