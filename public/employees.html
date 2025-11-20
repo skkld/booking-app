@@ -65,7 +65,7 @@
                         <tr>
                             <th>Name & Flags</th>
                             <th>Positions</th>
-                            <th>Contact</th>
+                            <th>Rate</th> <th>Contact</th>
                             <th id="th-autobook">Auto-Book</th>
                             <th id="th-notes">Notes</th>
                             <th>Actions</th>
@@ -87,12 +87,11 @@
                         <div class="form-group"><label for="full_name">Full Name</label><input type="text" id="full_name" name="full_name" required></div>
                         <div class="form-group"><label for="email">Email Address</label><input type="email" id="email" name="email"></div>
                         <div class="form-group"><label for="phone">Phone Number</label><input type="tel" id="phone" name="phone"></div>
+                        
+                        <div class="form-group"><label for="rate">Hourly Rate ($)</label><input type="number" id="rate" name="rate" step="0.01" min="0"></div>
+
                         <div class="form-group">
                             <label>Positions</label>
-                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <input type="text" id="quick-pos-name-add" placeholder="New Position Name" style="flex-grow: 1; padding: 0.4rem;">
-                                <button type="button" id="quick-add-pos-btn-add" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;">+</button>
-                            </div>
                             <div id="positions-checkbox-container" class="checkbox-group"></div>
                         </div>
                         <div class="form-group">
@@ -124,29 +123,21 @@
                         <div class="form-group"><label for="edit_full_name">Full Name</label><input type="text" id="edit_full_name" name="full_name" required></div>
                         <div class="form-group"><label for="edit_email">Email Address</label><input type="email" id="edit_email" name="email"></div>
                         <div class="form-group"><label for="edit_phone">Phone Number</label><input type="tel" id="edit_phone" name="phone"></div>
+                        
+                        <div class="form-group"><label for="edit_rate">Hourly Rate ($)</label><input type="number" id="edit_rate" name="rate" step="0.01" min="0"></div>
+
                         <div class="form-group">
                             <label>Positions</label>
-                            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <input type="text" id="quick-pos-name-edit" placeholder="New Position Name" style="flex-grow: 1; padding: 0.4rem;">
-                                <button type="button" id="quick-add-pos-btn-edit" class="btn btn-secondary" style="padding: 0.4rem 0.8rem;">+</button>
-                            </div>
                             <div id="edit-positions-checkbox-container" class="checkbox-group"></div>
                         </div>
-                        
-                        <div class="form-group" id="edit-modal-tags-section">
+                        <div class="form-group">
                             <label for="edit_tags">Tags (comma-separated)</label>
                             <input type="text" id="edit_tags" name="tags" placeholder="e.g. Team Lead, Rigger, V1">
                         </div>
-                        <div id="edit-modal-flags-section">
-                            <div class="form-group-checkbox"><input type="checkbox" id="edit_is_union_electrician" name="is_union_electrician"><label for="edit_is_union_electrician">Union Electrician</label></div>
-                            <div class="form-group-checkbox"><input type="checkbox" id="edit_is_last_option" name="is_last_option"><label for="edit_is_last_option">Only if Last Option</label></div>
-                            <div class="form-group-checkbox"><input type="checkbox" id="edit_is_autobook" name="is_autobook"><label for="edit_is_autobook">Book Immediately if Available</Llabel></div>
-                        </div>
-                        <div class="form-group" id="edit-modal-notes-section">
-                            <label for="edit_notes">Notes</label>
-                            <textarea id="edit_notes" name="notes" rows="3"></textarea>
-                        </div>
-                        
+                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_union_electrician" name="is_union_electrician"><label for="edit_is_union_electrician">Union Electrician</label></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_last_option" name="is_last_option"><label for="edit_is_last_option">Only if Last Option</label></div>
+                        <div class="form-group-checkbox"><input type="checkbox" id="edit_is_autobook" name="is_autobook"><label for="edit_is_autobook">Book Immediately if Available</label></div>
+                        <div class="form-group"><label for="edit_notes">Notes</label><textarea id="edit_notes" name="notes" rows="3"></textarea></div>
                         <div class="form-actions">
                             <button type="button" id="edit-modal-cancel-btn" class="btn btn-secondary">Cancel</button>
                             <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -156,6 +147,7 @@
             </div>
         </div>
     </main>
+    
     <script type="module" src="/logout.js"></script>
     <script type="module" src="/employees.js"></script>
 </body>
