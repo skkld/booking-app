@@ -141,9 +141,9 @@ function displayShifts(shifts, allAssignments) {
     // 2. Render Date Groups
     for (const [date, daysShifts] of Object.entries(shiftsByDate)) {
         // Add Header Row
-        const headerRow = `
+       const headerRow = `
             <tr class="date-header-row" style="background-color: #1e1e1e;">
-                <td colspan="5" style="font-weight: 700; color: var(--primary-color); padding-top: 1rem;">${date}</td>
+                <td colspan="5" style="font-weight: 700; color: #ffffff; padding-top: 1rem;">${date}</td>
             </tr>
         `;
         container.insertAdjacentHTML('beforeend', headerRow);

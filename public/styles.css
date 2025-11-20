@@ -279,4 +279,32 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
     
     /* Mobile Tables */
     td .btn { display: block; width: 100%; margin-bottom: 0.5rem; text-align: center; margin-left: 0 !important; }
+}/* --- Project Info Grid Layout Fix --- */
+.info-item {
+    align-items: flex-start; /* Align icon to top */
+}
+
+.info-item-content {
+    display: flex;
+    flex-direction: column; /* Stacks the Header and Value */
+    gap: 0.25rem; /* Adds a small space between them */
+}
+
+.info-item-content strong {
+    color: var(--text-muted); /* Makes the label ("Client:") subtle */
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-item-content span {
+    color: var(--text-main); /* Makes the value ("ABC Corp") bright white */
+    font-size: 1rem;
+}
+
+/* --- Fix Table Text Colors --- */
+/* Force Shift Names to be White */
+.data-table strong {
+    color: #ffffff !important;
+    font-weight: 700;
 }
