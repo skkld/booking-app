@@ -1,8 +1,9 @@
-const supabaseUrl = 'https://dblgrrusqxkdwgzyagtg.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRibGdycnVzcXhrZHdnenlhZ3RnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0NDYzNTcsImV4cCI6MjA3NzAyMjM1N30.Au4AyxrxE0HzLqYWfMcUePMesbZTrfoIFF3Cp0RloWI';
-const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+import { _supabase } from './auth.js';
 
 let currentShift = null;
+let currentProject = null;
+let companyRules = null;
+let unionRules = null;
 
 // Helper to format date for datetime-local
 const formatDateTimeLocal = (date) => {
@@ -15,6 +16,7 @@ async function loadTimeSheet() {
     const shiftId = urlParams.get('shift_id');
     if (!shiftId) return document.body.innerHTML = '<h1>No Shift ID provided.</h1>';
 
+    // 1. Fetch Shift Data
     const { data: shift, error } = await _supabase
         .from('shifts')
         .select(`*, projects(*), assignments(*, employees(*))`)
@@ -22,38 +24,115 @@ async function loadTimeSheet() {
         .single();
     
     if (error || !shift) return document.body.innerHTML = '<h1>Could not load shift data.</h1>';
-    
     currentShift = shift;
+    currentProject = shift.projects;
+
+    // 2. Fetch Rules (Company & Union)
+    const [cRes, uRes] = await Promise.all([
+        _supabase.from('payroll_rules').select('*').eq('id', 1).single(),
+        _supabase.from('union_payroll_rules').select('*').eq('id', 1).single()
+    ]);
+    companyRules = cRes.data;
+    unionRules = uRes.data;
     
-    // Populate headers
+    // 3. Populate Headers
     document.getElementById('project-name').textContent = shift.projects.name;
     document.getElementById('shift-name-role').textContent = `${shift.name} - ${shift.role}`;
-
-    // **NEW: Set the href for the Cancel button**
     const cancelButton = document.getElementById('cancel-btn');
-    if (cancelButton) {
-        cancelButton.href = `/project-details.html?id=${shift.projects.id}`;
-    }
+    if (cancelButton) cancelButton.href = `/project-details.html?id=${shift.projects.id}`;
 
-    // Populate table
+    // 4. Populate Table
     const tableBody = document.getElementById('crew-time-entry-list');
     tableBody.innerHTML = '';
 
     if (shift.assignments.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3">No crew assigned to this shift.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="4">No crew assigned to this shift.</td></tr>';
         return;
     }
 
     shift.assignments.forEach(assignment => {
         const row = document.createElement('tr');
         row.dataset.employeeId = assignment.employees.id;
+        
+        // Use scheduled times as default values if no previous entry exists
+        // (In a real app, you might check for existing timecard entries here too)
+        const defaultStart = "";
+        const defaultEnd = "";
+
         row.innerHTML = `
             <td><strong>${assignment.employees.full_name}</strong></td>
-            <td><input type="datetime-local" class="clock-in-input"></td>
-            <td><input type="datetime-local" class="clock-out-input"></td>
+            <td><input type="datetime-local" class="clock-in-input" value="${defaultStart}"></td>
+            <td><input type="datetime-local" class="clock-out-input" value="${defaultEnd}"></td>
+            <td class="breakdown-cell" style="font-size: 0.85rem; color: var(--text-muted);">-</td>
         `;
         tableBody.appendChild(row);
+
+        // Add listeners for real-time calculation
+        const startInput = row.querySelector('.clock-in-input');
+        const endInput = row.querySelector('.clock-out-input');
+        const breakdownCell = row.querySelector('.breakdown-cell');
+
+        const updateCalc = () => {
+            if (startInput.value && endInput.value) {
+                const breakdown = calculateBreakdown(startInput.value, endInput.value);
+                breakdownCell.innerHTML = breakdown;
+            } else {
+                breakdownCell.textContent = "-";
+            }
+        };
+
+        startInput.addEventListener('input', updateCalc);
+        endInput.addEventListener('input', updateCalc);
     });
+}
+
+// --- The Logic Engine ---
+function calculateBreakdown(startStr, endStr) {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    
+    if (end <= start) return '<span style="color: var(--status-red-text);">Invalid Time</span>';
+
+    const rules = currentProject.is_union_project ? unionRules : companyRules;
+    if (!rules) return "Rules Error";
+
+    const grossHours = (end - start) / 3600000;
+    let breakDed = 0;
+
+    // Auto-Break Deduction
+    if (grossHours > rules.auto_break_threshold) {
+        breakDed = rules.auto_break_duration / 60;
+    }
+    
+    const netHours = Math.max(0, grossHours - breakDed);
+    
+    let reg = 0, ot = 0;
+    
+    // Sunday check
+    const isSunday = start.getDay() === 0;
+    
+    if (rules.calculate_sundays_as_ot && isSunday) {
+        ot = netHours;
+    } else if (netHours > rules.daily_overtime_threshold) {
+        reg = rules.daily_overtime_threshold;
+        ot = netHours - rules.daily_overtime_threshold;
+    } else {
+        reg = netHours;
+    }
+
+    let display = `<span style="color: var(--text-main); font-weight:bold;">${netHours.toFixed(2)} hrs</span>`;
+    
+    if (ot > 0) {
+        display += `<br><span style="color: var(--status-yellow-text); font-size: 0.8rem;">${reg.toFixed(2)} Reg / ${ot.toFixed(2)} OT</span>`;
+    } else {
+        display += `<br><span style="color: var(--status-green-text); font-size: 0.8rem;">Straight Time</span>`;
+    }
+    
+    if (breakDed > 0) {
+        display += `<br><span style="color: var(--text-muted); font-size: 0.7rem;">(Includes ${rules.auto_break_duration}m break)</span>`;
+    }
+
+    return display;
 }
 
 // "Fill All" button functionality
@@ -63,8 +142,14 @@ document.getElementById('fill-all-btn').addEventListener('click', () => {
     const scheduledStart = formatDateTimeLocal(new Date(currentShift.start_time));
     const scheduledEnd = formatDateTimeLocal(new Date(currentShift.end_time));
 
-    document.querySelectorAll('.clock-in-input').forEach(input => input.value = scheduledStart);
-    document.querySelectorAll('.clock-out-input').forEach(input => input.value = scheduledEnd);
+    document.querySelectorAll('.clock-in-input').forEach(input => {
+        input.value = scheduledStart;
+        input.dispatchEvent(new Event('input')); // Trigger calc
+    });
+    document.querySelectorAll('.clock-out-input').forEach(input => {
+        input.value = scheduledEnd;
+        input.dispatchEvent(new Event('input')); // Trigger calc
+    });
 });
 
 // Form submission functionality
@@ -75,26 +160,41 @@ document.getElementById('time-entry-form').addEventListener('submit', async (eve
     const timecardEntries = [];
     const rows = document.querySelectorAll('#crew-time-entry-list tr');
 
+    // Pre-calculate rules once
+    const rules = currentProject.is_union_project ? unionRules : companyRules;
+
     for (const row of rows) {
         const employeeId = row.dataset.employeeId;
         const clockIn = row.querySelector('.clock-in-input').value;
         const clockOut = row.querySelector('.clock-out-input').value;
 
         if (employeeId && clockIn && clockOut) {
-            const totalHours = ((new Date(clockOut) - new Date(clockIn)) / 3600000).toFixed(2);
+            const start = new Date(clockIn);
+            const end = new Date(clockOut);
+            const grossHours = (end - start) / 3600000;
+            let breakDed = 0;
+            
+            if (grossHours > rules.auto_break_threshold) {
+                breakDed = rules.auto_break_duration;
+            }
+            
+            // We calculate Net Hours for the record
+            const netHours = grossHours - (breakDed / 60);
+
             timecardEntries.push({
                 shift_id: currentShift.id,
                 employee_id: employeeId,
-                clock_in: new Date(clockIn).toISOString(),
-                clock_out: new Date(clockOut).toISOString(),
-                total_hours: totalHours,
+                clock_in: start.toISOString(),
+                clock_out: end.toISOString(),
+                total_hours: netHours.toFixed(2),
+                break_duration_minutes: breakDed,
                 status: 'pending'
             });
         }
     }
 
     if (timecardEntries.length === 0) {
-        return alert('No time entries to save.');
+        return alert('No valid time entries to save.');
     }
 
     const { error } = await _supabase.from('timecard_entries').insert(timecardEntries);

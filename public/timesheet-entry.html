@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Time Sheet Entry</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="/auth.js"></script>
     <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <nav class="sidebar">
@@ -16,16 +17,18 @@
         <ul class="sidebar-nav">
             <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
             <li class="nav-item"><a href="/projects.html" class="nav-link">Projects</a></li>
+            <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
             <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
             <li class="nav-item"><a href="/timecards.html" class="nav-link active">Timecards</a></li>
             <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
         </ul>
     </nav>
     <main class="main-content">
         <header class="header">
             <div>
                 <h1 id="project-name">Loading...</h1>
-                <h3 id="shift-name-role" style="color: var(--text-light); font-weight: 500;"></h3>
+                <h3 id="shift-name-role" style="color: var(--text-muted); font-weight: 500;"></h3>
             </div>
             <div class="header-actions">
                 <button id="fill-all-btn" class="btn btn-secondary">Fill All with Scheduled Times</button>
@@ -41,7 +44,7 @@
                                 <th>Crew Name</th>
                                 <th>Clock In</th>
                                 <th>Clock Out</th>
-                            </tr>
+                                <th style="width: 200px;">Est. Breakdown</th> </tr>
                         </thead>
                         <tbody id="crew-time-entry-list">
                             </tbody>
@@ -54,9 +57,7 @@
             </div>
         </form>
     </main>
+    <script type="module" src="/logout.js"></script>
     <script type="module" src="/timesheet-entry.js"></script>
-</main> <script type="module" src="/logout.js"></script>
-    
-    <script type="module" src="/dashboard.js"></script>
 </body>
 </html>
