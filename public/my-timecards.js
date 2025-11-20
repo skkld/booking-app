@@ -29,14 +29,15 @@ async function loadMyShifts() {
         let action = `<button class="btn btn-primary btn-clock-in" data-shift-id="${shifts.id}">Clock In</button>`;
 
         if (entry) {
-            // If clocked in, enable the input so they can add expenses before clocking out
             if (entry.status === 'clocked_in') {
                 status = '<span style="color: var(--primary-color); font-weight: 600;">Clocked In</span>';
+                // Active input for expense
                 reimbInput = `<input type="number" class="reimb-input" id="reimb-${entry.id}" placeholder="0.00" style="width: 80px;">`;
                 action = `<button class="btn btn-danger btn-clock-out" data-entry-id="${entry.id}">Clock Out</button>`;
             } else {
                 status = 'Submitted';
                 action = 'Complete';
+                // Read-only display for expense
                 reimbInput = `$${entry.reimbursement_amount || 0}`;
             }
         }
@@ -71,6 +72,7 @@ async function handleClockIn(event) {
 
 async function handleClockOut(event) {
     const entryId = event.target.dataset.entryId;
+    // Get the value from the input box
     const reimbInput = document.getElementById(`reimb-${entryId}`);
     const reimbursement = reimbInput ? (parseFloat(reimbInput.value) || 0) : 0;
     
@@ -81,7 +83,7 @@ async function handleClockOut(event) {
         clock_out: new Date().toISOString(),
         status: 'pending',
         total_hours: totalHours,
-        reimbursement_amount: reimbursement
+        reimbursement_amount: reimbursement // Save the expense
     }).eq('id', entryId);
     
     if (error) alert(error.message); else loadMyShifts();
