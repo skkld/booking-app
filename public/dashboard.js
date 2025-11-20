@@ -136,10 +136,14 @@ async function displayUpcomingProjects(filterValue) {
     });
 }
 
-document.getElementById('project-date-filter').addEventListener('change', (event) => {
-    const selectedFilter = event.target.value;
-    displayUpcomingProjects(selectedFilter);
-});
+// Safe Event Listener
+const dateFilter = document.getElementById('project-date-filter');
+if (dateFilter) {
+    dateFilter.addEventListener('change', (event) => {
+        const selectedFilter = event.target.value;
+        displayUpcomingProjects(selectedFilter);
+    });
+}
 
 loadStaticDashboardData();
 displayUpcomingProjects('month');
