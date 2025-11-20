@@ -11,28 +11,36 @@ let allEmployees = [];
 function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbursement) {
     const clockIn = new Date(clockInStr);
     const clockOut = new Date(clockOutStr);
-    let regular = 0, overtime = 0;
+    let regular = 0, overtime = 0, night = 0;
     const totalHours = (clockOut - clockIn) / 3600000;
 
-    let breakDed = 0;
-    if (rules && totalHours > rules.auto_break_threshold) { breakDed = rules.auto_break_duration / 60; }
-    const netHours = Math.max(0, totalHours - breakDed);
+    // Apply Auto-Break
+    let breakDurationMinutes = 0;
+    if (rules && totalHours > rules.auto_break_threshold) { 
+        breakDurationMinutes = rules.auto_break_duration; 
+    }
+    const netHours = Math.max(0, totalHours - (breakDurationMinutes / 60));
 
-    if (rules && rules.calculate_sundays_as_ot && isSunday) { 
-        overtime = netHours; 
-    } else if (rules && netHours > rules.daily_overtime_threshold) {
-        regular = rules.daily_overtime_threshold;
-        overtime = netHours - rules.daily_overtime_threshold;
-    } else { 
-        regular = netHours; 
+    // Apply OT Rules
+    if (rules) {
+        if (rules.calculate_sundays_as_ot && isSunday) { 
+            overtime = netHours; 
+        } else if (netHours > rules.daily_overtime_threshold) {
+            regular = rules.daily_overtime_threshold;
+            overtime = netHours - rules.daily_overtime_threshold;
+        } else { 
+            regular = netHours; 
+        }
+    } else {
+        regular = netHours; // Fallback
     }
 
-    // Ensure rate is a number
-    const payRate = parseFloat(rate) || 0;
-    const reimb = parseFloat(reimbursement) || 0;
-
-    const hourlyPay = (regular * payRate) + (overtime * payRate * 1.5);
-    const totalPay = hourlyPay + reimb;
+    // CALCULATE TOTAL PAY ($)
+    const numRate = parseFloat(rate) || 0;
+    const numReimb = parseFloat(reimbursement) || 0;
+    
+    const basePay = (regular * numRate) + (overtime * numRate * 1.5);
+    const totalPay = basePay + numReimb;
 
     return { 
         regular: regular.toFixed(2), 
@@ -42,20 +50,58 @@ function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbu
     };
 }
 
+// --- HELPER: FIND CORRECT RATE ---
+function getEffectiveRate(employee, shiftRole) {
+    if (!employee || !shiftRole) return 0;
+
+    // 1. Check for a specific position override
+    // We try to match the shift role name (e.g. "Electrician") to the employee's position names
+    if (employee.employee_positions && employee.employee_positions.length > 0) {
+        const normalize = (str) => str ? str.trim().toLowerCase() : '';
+        const targetRole = normalize(shiftRole);
+
+        const positionMatch = employee.employee_positions.find(ep => 
+            ep.positions && normalize(ep.positions.name) === targetRole
+        );
+
+        if (positionMatch && positionMatch.hourly_rate) {
+            return positionMatch.hourly_rate;
+        }
+    }
+
+    // 2. Fallback to base rate
+    return employee.rate || 0;
+}
+
 // --- MAIN DISPLAY FUNCTION ---
 async function loadTimecards() {
+    // 1. Fetch Rules
     if (!companyRules) { const { data } = await _supabase.from('payroll_rules').select('*').eq('id', 1).single(); companyRules = data; }
     if (!unionRules) { const { data } = await _supabase.from('union_payroll_rules').select('*').eq('id', 1).single(); unionRules = data; }
     if (allProjects.length === 0) { const { data } = await _supabase.from('projects').select('id, is_union_project'); allProjects = data || []; }
 
     const tableBody = document.getElementById('timecard-list-table');
+    
+    // **UPDATED QUERY: Fetch nested position data for rate lookup**
     const { data: entries, error } = await _supabase
         .from('timecard_entries')
-        .select(`*, employees(full_name, rate), shifts(*, projects(name, id))`)
+        .select(`
+            *, 
+            employees(
+                full_name, 
+                rate,
+                employee_positions(hourly_rate, positions(name))
+            ), 
+            shifts(*, projects(name, id))
+        `)
         .eq('status', 'pending')
         .order('clock_in', { ascending: false });
 
-    if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="9">Error loading timecards.</td></tr>`; return; }
+    if (error) { 
+        console.error(error); 
+        tableBody.innerHTML = `<tr><td colspan="9">Error loading timecards.</td></tr>`; 
+        return; 
+    }
     
     document.getElementById('pending-count').textContent = entries.length;
     if (entries.length === 0) {
@@ -71,14 +117,20 @@ async function loadTimecards() {
         const rules = project?.is_union_project ? unionRules : companyRules;
         const isSunday = new Date(entry.clock_in).getDay() === 0;
         
-        const rate = entry.employees?.rate || 0;
+        // **USE SMART RATE LOOKUP**
+        const rate = getEffectiveRate(entry.employees, entry.shifts.role);
         const reimb = entry.reimbursement_amount || 0;
 
         const payroll = calculatePayroll(entry.clock_in, entry.clock_out, rules, isSunday, rate, reimb);
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>${entry.employees.full_name}</strong><div style="font-size:0.8em; color:#aaa;">Rate: $${rate}</div></td>
+            <td>
+                <strong>${entry.employees.full_name}</strong>
+                <div style="font-size:0.8em; color:#aaa;">
+                    Role: ${entry.shifts.role} | Rate: $${rate}
+                </div>
+            </td>
             <td>${entry.shifts.name}</td>
             <td>${new Date(entry.clock_in).toLocaleTimeString([], {timeStyle:'short'})} - ${new Date(entry.clock_out).toLocaleTimeString([], {timeStyle:'short'})}</td>
             <td>${payroll.regular}</td>
@@ -93,6 +145,7 @@ async function loadTimecards() {
         `;
         tableBody.appendChild(row);
     });
+
     document.querySelectorAll('.btn-approve').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const id = e.target.dataset.id;
@@ -101,9 +154,11 @@ async function loadTimecards() {
             loadTimecards();
         });
     });
+    
     document.querySelectorAll('.btn-reject').forEach(btn => btn.addEventListener('click', showRejectionModal));
 }
 
+// --- APPROVAL / REJECTION HANDLERS ---
 function showRejectionModal(event) {
     document.getElementById('reject-entry-id').value = event.target.dataset.id;
     document.getElementById('rejection-modal').style.display = 'flex';
@@ -122,11 +177,12 @@ document.getElementById('reject-modal-close').onclick = () => { document.getElem
 
 // --- MANUAL ENTRY LOGIC ---
 async function showManualEntryModal() {
+    // **UPDATED QUERY: Include position data for employees**
     const [projectsRes, shiftsRes, assignmentsRes, employeesRes] = await Promise.all([
         _supabase.from('projects').select('id, name, is_union_project').order('name'),
         _supabase.from('shifts').select('id, name, role, project_id'),
         _supabase.from('assignments').select('shift_id, employee_id'),
-        _supabase.from('employees').select('id, full_name, rate') // Ensuring rate is fetched
+        _supabase.from('employees').select('id, full_name, rate, employee_positions(hourly_rate, positions(name))')
     ]);
     
     allProjects = projectsRes.data || [];
@@ -167,8 +223,6 @@ async function handleManualEntrySubmit(event) {
 
     const shift = allShifts.find(s => s.id == shiftId);
     const project = allProjects.find(p => p.id == shift.project_id);
-    
-    // **FIX: Find employee object to get their rate**
     const employee = allEmployees.find(e => e.id == employeeId);
     
     const rules = project?.is_union_project ? unionRules : companyRules;
@@ -176,7 +230,10 @@ async function handleManualEntrySubmit(event) {
     const clockOut = form.elements['clock-out'].value;
     const isSunday = new Date(clockIn).getDay() === 0;
     
-    const payroll = calculatePayroll(clockIn, clockOut, rules, isSunday, employee.rate || 0, reimbAmount);
+    // **USE SMART RATE LOOKUP**
+    const rate = getEffectiveRate(employee, shift.role);
+    
+    const payroll = calculatePayroll(clockIn, clockOut, rules, isSunday, rate, reimbAmount);
 
     const newEntry = {
         shift_id: shiftId,
@@ -199,6 +256,7 @@ async function handleManualEntrySubmit(event) {
     }
 }
 
+// --- LISTENERS ---
 document.getElementById('manual-entry-btn').addEventListener('click', showManualEntryModal);
 document.getElementById('manual-entry-close').onclick = () => { document.getElementById('manual-entry-modal').style.display = 'none'; };
 document.getElementById('manual-entry-form').addEventListener('submit', handleManualEntrySubmit);
