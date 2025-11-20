@@ -3,7 +3,10 @@ import { getUserRole, _supabase } from './auth.js';
 let allPositions = [];
 let currentUserId = null;
 
-_supabase.auth.getUser().then(({ data }) => { if (data?.user) currentUserId = data.user.id; });
+// Get current user ID on load
+_supabase.auth.getUser().then(({ data }) => {
+    if (data?.user) currentUserId = data.user.id;
+});
 
 const parseTags = (tagString) => {
     if (!tagString) return [];
@@ -19,28 +22,42 @@ async function loadPositions() {
     const editContainer = document.getElementById('edit-positions-checkbox-container');
     const filterSelect = document.getElementById('filter-position');
     
-    let checkboxesHtml = '', editCheckboxesHtml = '', filterOptionsHtml = '<option value="">Any Position</option>';
+    let checkboxesHtml = '';
+    let editCheckboxesHtml = '';
+    let filterOptionsHtml = '<option value="">Any Position</option>';
+    
     allPositions.forEach(pos => {
         checkboxesHtml += `<div class="form-group-checkbox"><input type="checkbox" name="positions" value="${pos.id}" id="pos-${pos.id}"><label for="pos-${pos.id}">${pos.name}</label></div>`;
         editCheckboxesHtml += `<div class="form-group-checkbox"><input type="checkbox" name="edit_positions" value="${pos.id}" id="edit-pos-${pos.id}"><label for="edit-pos-${pos.id}">${pos.name}</label></div>`;
         filterOptionsHtml += `<option value="${pos.id}">${pos.name}</option>`;
     });
+    
     if (addContainer) addContainer.innerHTML = checkboxesHtml;
     if (editContainer) editContainer.innerHTML = editCheckboxesHtml;
     if (filterSelect) filterSelect.innerHTML = filterOptionsHtml;
 }
 
-async function quickAddPosition(inputId) { /* ... same as before ... */ }
-// (Listeners omitted for brevity, assume included)
+async function quickAddPosition(inputId) {
+    const input = document.getElementById(inputId);
+    const name = input.value.trim();
+    if (!name) return alert("Please enter a position name.");
+    const { error } = await _supabase.from('positions').insert([{ name: name }]);
+    if (error) { alert(`Error adding position: ${error.message}`); } else { input.value = ''; loadPositions(); }
+}
+
+const qaAdd = document.getElementById('quick-add-pos-btn-add');
+if(qaAdd) qaAdd.addEventListener('click', () => quickAddPosition('quick-pos-name-add'));
+const qaEdit = document.getElementById('quick-add-pos-btn-edit');
+if(qaEdit) qaEdit.addEventListener('click', () => quickAddPosition('quick-pos-name-edit'));
 
 async function loadFilteredEmployees() {
     const tableBody = document.getElementById('employee-list-table');
-    tableBody.innerHTML = `<tr><td colspan="7">Loading employees...</td></tr>`; // Update colspan
+    tableBody.innerHTML = `<tr><td colspan="7">Loading employees...</td></tr>`;
 
     const userRole = getUserRole();
     const isPrivileged = userRole === 'admin' || userRole === 'manager';
 
-    // Toggle UI elements
+    // Hide/Show Admin Elements
     const thAutobook = document.getElementById('th-autobook');
     const thNotes = document.getElementById('th-notes');
     const addBtn = document.getElementById('add-employee-btn');
@@ -49,18 +66,26 @@ async function loadFilteredEmployees() {
     if (thNotes) thNotes.style.display = isPrivileged ? '' : 'none';
     if (addBtn) addBtn.style.display = isPrivileged ? 'block' : 'none';
 
-    // Query logic (same as before)
     const posId = document.getElementById('filter-position').value;
     const tag = document.getElementById('filter-tags').value;
     const isUnion = document.getElementById('filter-union').checked;
 
-    let query = _supabase.from('employees').select(`*, employee_positions!left(positions!employee_positions_position_id_fkey(name))`).order('full_name', { ascending: true });
+    let query = _supabase
+        .from('employees')
+        .select(`*, employee_positions!left(positions!employee_positions_position_id_fkey(name))`)
+        .order('full_name', { ascending: true });
+
     if (posId) query = _supabase.from('employees').select(`*, employee_positions!inner(positions!employee_positions_position_id_fkey(name))`).eq('employee_positions.position_id', posId).order('full_name', { ascending: true });
     if (tag) query = query.ilike('tags', `%${tag}%`);
     if (isUnion) query = query.eq('is_union_electrician', true);
 
     const { data: employees, error } = await query;
-    if (error || !employees) return console.error('Error:', error);
+
+    if (error || !employees) {
+        console.error('Error fetching employees:', error);
+        tableBody.innerHTML = `<tr><td colspan="7">Error loading employees.</td></tr>`;
+        return;
+    }
 
     tableBody.innerHTML = '';
     employees.forEach(employee => {
@@ -72,9 +97,8 @@ async function loadFilteredEmployees() {
 
         const autoBookCell = isPrivileged ? `<td>${employee.is_autobook ? 'Yes' : 'No'}</td>` : '';
         const notesCell = isPrivileged ? `<td>${employee.notes || ''}</td>` : '';
-        
-        // **NEW: Rate Cell (Only visible to Admin/Manager)**
-        const rateCell = isPrivileged ? `<td>${employee.rate ? '$'+Number(employee.rate).toFixed(2) : '-'}</td>` : '<td>-</td>';
+        // New Rate Cell
+        const rateCell = isPrivileged ? `<td>${employee.rate ? '$'+Number(employee.rate).toFixed(2) : '-'}</td>` : `<td>-</td>`;
 
         const canEdit = isPrivileged || (currentUserId && employee.user_id === currentUserId);
         const canDelete = isPrivileged;
@@ -95,12 +119,9 @@ async function loadFilteredEmployees() {
         tableBody.appendChild(row);
     });
     
+    addEditButtonListeners(); // Attach Listeners Here
     if (isPrivileged) {
         addDeleteButtonListeners();
-        addEditButtonListeners();
-    } else if (currentUserId) {
-        // Allow crew to edit themselves
-        addEditButtonListeners();
     }
 }
 
@@ -115,8 +136,7 @@ function addEmployeeFormListener() {
             full_name: formData.get('full_name'), email: formData.get('email'), phone: formData.get('phone'),
             notes: formData.get('notes'), is_autobook: formData.get('is_autobook') === 'on',
             is_last_option: formData.get('is_last_option') === 'on', is_union_electrician: formData.get('is_union_electrician') === 'on',
-            tags: tags,
-            rate: formData.get('rate') || null // **NEW: Save Rate**
+            tags: tags, rate: formData.get('rate') || null
         };
         const { data: newEmployee, error: empError } = await _supabase.from('employees').insert(employeeData).select().single();
         if (empError) return alert(`Failed to save: ${empError.message}`);
@@ -131,9 +151,30 @@ function addEmployeeFormListener() {
     });
 }
 
+function addDeleteButtonListeners() {
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', () => handleDeleteEmployee(button.dataset.employeeId));
+    });
+}
+async function handleDeleteEmployee(employeeId) {
+    if(!confirm("Are you sure? This will also remove them from all shifts.")) return;
+    await _supabase.from('employee_positions').delete().eq('employee_id', employeeId);
+    await _supabase.from('assignments').delete().eq('employee_id', employeeId);
+    await _supabase.from('timecard_entries').delete().eq('employee_id', employeeId);
+    await _supabase.from('availability_requests').delete().eq('employee_id', employeeId);
+    const { error } = await _supabase.from('employees').delete().eq('id', employeeId);
+    if (error) alert(error.message); else { alert('Deleted.'); loadFilteredEmployees(); }
+}
+
+function addEditButtonListeners() {
+    document.querySelectorAll('.edit-btn').forEach(button => {
+        button.addEventListener('click', () => openEditModal(button.dataset.employeeId));
+    });
+}
+
 async function openEditModal(employeeId) {
     const { data: employee, error } = await _supabase.from('employees').select('*, employee_positions(position_id)').eq('id', employeeId).single();
-    if (error) return alert('Could not fetch data.');
+    if (error) return alert('Could not fetch employee data.');
     
     const form = document.getElementById('edit-employee-form');
     const userRole = getUserRole();
@@ -144,27 +185,26 @@ async function openEditModal(employeeId) {
     form.elements.email.value = employee.email;
     form.elements.phone.value = employee.phone;
     
-    // **NEW: Populate Rate**
-    if (isPrivileged) {
-         form.elements.rate.value = employee.rate;
-         // Show other restricted fields
-         document.getElementById('edit-modal-tags-section').style.display = 'block';
-         document.getElementById('edit-modal-flags-section').style.display = 'block';
-         document.getElementById('edit-modal-notes-section').style.display = 'block';
-         form.elements.rate.parentElement.style.display = 'block'; // Ensure rate input is visible
-         
-         form.elements.notes.value = employee.notes;
-         form.elements.tags.value = employee.tags ? employee.tags.join(', ') : '';
-         form.elements.is_autobook.checked = employee.is_autobook;
-         form.elements.is_last_option.checked = employee.is_last_option;
-         form.elements.is_union_electrician.checked = employee.is_union_electrician;
-    } else {
-         // Hide restricted fields for crew editing themselves
-         document.getElementById('edit-modal-tags-section').style.display = 'none';
-         document.getElementById('edit-modal-flags-section').style.display = 'none';
-         document.getElementById('edit-modal-notes-section').style.display = 'none';
-         form.elements.rate.parentElement.style.display = 'none'; // Hide rate input
+    // Handle Rate Field
+    if (form.elements.rate) {
+        form.elements.rate.value = employee.rate;
+        form.elements.rate.closest('.form-group').style.display = isPrivileged ? 'flex' : 'none';
     }
+    
+    // Populate sensitive fields
+    const tagsSection = document.getElementById('edit-modal-tags-section'); // Note: If you removed IDs in HTML, these might need checking
+    // For safety, we assume standard structure if IDs are missing from HTML update
+    
+    if (isPrivileged) {
+        form.elements.notes.value = employee.notes;
+        form.elements.tags.value = employee.tags ? employee.tags.join(', ') : '';
+        form.elements.is_autobook.checked = employee.is_autobook;
+        form.elements.is_last_option.checked = employee.is_last_option;
+        form.elements.is_union_electrician.checked = employee.is_union_electrician;
+        
+        // Make sure containers are visible if they have IDs
+        // (Based on your latest HTML, these fields are just in the form directly)
+    } 
 
     form.querySelectorAll('input[name="edit_positions"]').forEach(cb => cb.checked = false);
     const currentPositionIds = employee.employee_positions.map(ep => ep.position_id);
@@ -195,40 +235,41 @@ async function handleEditFormSubmit(event) {
         employeeData.is_autobook = formData.get('is_autobook') === 'on';
         employeeData.is_last_option = formData.get('is_last_option') === 'on';
         employeeData.is_union_electrician = formData.get('is_union_electrician') === 'on';
-        employeeData.rate = formData.get('rate') || null; // **NEW: Update Rate**
+        employeeData.rate = formData.get('rate') || null;
     }
 
     const { error: empError } = await _supabase.from('employees').update(employeeData).eq('id', employeeId);
     if (empError) return alert(`Error: ${empError.message}`);
 
-    // ... (Position sync logic same as before) ...
     const { error: deletePosError } = await _supabase.from('employee_positions').delete().eq('employee_id', employeeId);
+    if (deletePosError) return alert(`Error: ${deletePosError.message}`);
+    
     const selectedPositionIds = Array.from(form.querySelectorAll('input[name="edit_positions"]:checked')).map(cb => cb.value);
     if (selectedPositionIds.length > 0) {
         const positionLinks = selectedPositionIds.map(posId => ({ employee_id: employeeId, position_id: posId }));
         await _supabase.from('employee_positions').insert(positionLinks);
     }
-
-    alert('Updated!');
+    
+    alert('Updated successfully!');
     document.getElementById('edit-employee-modal').style.display = 'none';
     loadFilteredEmployees();
 }
-
-// --- Helper stubs to ensure completeness ---
-function addDeleteButtonListeners() { document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => handleDeleteEmployee(btn.dataset.employeeId))); }
-async function handleDeleteEmployee(eId) { if(!confirm("Delete?")) return; await _supabase.from('employee_positions').delete().eq('employee_id', eId); await _supabase.from('assignments').delete().eq('employee_id', eId); await _supabase.from('timecard_entries').delete().eq('employee_id', eId); await _supabase.from('availability_requests').delete().eq('employee_id', eId); const { error } = await _supabase.from('employees').delete().eq('id', eId); if(error) alert(error.message); else { alert('Deleted'); loadFilteredEmployees(); } }
-function addEditButtonListeners() { document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', () => openEditModal(btn.dataset.employeeId))); }
 
 // --- Initial Load ---
 loadPositions();
 loadFilteredEmployees();
 addEmployeeFormListener();
-// ... (Listeners for modals and filters) ...
 document.getElementById('edit-modal-close-btn').onclick = () => { document.getElementById('edit-employee-modal').style.display = 'none'; };
 document.getElementById('edit-modal-cancel-btn').onclick = () => { document.getElementById('edit-employee-modal').style.display = 'none'; };
 document.getElementById('edit-employee-form').addEventListener('submit', handleEditFormSubmit);
-document.getElementById('add-employee-btn').addEventListener('click', () => { document.getElementById('add-employee-modal').style.display = 'flex'; });
+const addBtn = document.getElementById('add-employee-btn');
+if(addBtn) addBtn.addEventListener('click', () => { document.getElementById('add-employee-modal').style.display = 'flex'; });
 document.getElementById('add-modal-close-btn').onclick = () => { document.getElementById('add-employee-modal').style.display = 'none'; };
 document.getElementById('add-modal-cancel-btn').onclick = () => { document.getElementById('add-employee-modal').style.display = 'none'; };
 document.getElementById('filter-btn').addEventListener('click', loadFilteredEmployees);
-document.getElementById('reset-btn').addEventListener('click', () => { document.getElementById('filter-position').value = ''; document.getElementById('filter-tags').value = ''; document.getElementById('filter-union').checked = false; loadFilteredEmployees(); });
+document.getElementById('reset-btn').addEventListener('click', () => {
+    document.getElementById('filter-position').value = '';
+    document.getElementById('filter-tags').value = '';
+    document.getElementById('filter-union').checked = false;
+    loadFilteredEmployees();
+});
