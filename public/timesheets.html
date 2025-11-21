@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timesheet Entry</title>
+    <script type="module" src="/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <style>
+        .filter-bar { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+        .filter-item { display: flex; flex-direction: column; gap: 0.25rem; }
+        .ts-input { padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-input); color: var(--text-main); width: 130px; }
+        .status-draft { color: var(--text-muted); font-style: italic; }
+        .status-saved { color: var(--primary-color); font-weight: bold; }
+        .status-completed { color: var(--status-green-text); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <img src="/assets/logo.png" alt="Booking App Logo" class="logo-img">
+            <span>Booking App</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
+            <li class="nav-item"><a href="/projects.html" class="nav-link">Projects</a></li>
+            <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
+            <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
+            <li class="nav-item"><a href="/timesheets.html" class="nav-link active">Timesheets</a></li>
+            <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
+            <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <h1>Timesheet Entry</h1>
+            <div class="header-actions">
+                <button id="toggle-view-btn" class="btn btn-secondary">View Completed History</button>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="filter-bar">
+                    <div class="filter-item">
+                        <label>Filter by Project</label>
+                        <select id="filter-project" class="ts-input" style="width: 200px;">
+                            <option value="">All Projects</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>Filter by Date</label>
+                        <input type="date" id="filter-date" class="ts-input">
+                    </div>
+                    <div class="filter-item">
+                        <label>&nbsp;</label>
+                        <button id="apply-filters" class="btn btn-secondary">Apply</button>
+                    </div>
+                    <div class="filter-item" style="margin-left: auto;">
+                         <label>&nbsp;</label>
+                         <button id="save-all-btn" class="btn btn-primary">Save All on Page</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Project</th>
+                                <th>Name - Role</th>
+                                <th>In</th>
+                                <th>Out</th>
+                                <th>Break (m)</th>
+                                <th>Reimb ($)</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timesheet-list">
+                            <tr><td colspan="9">Loading shifts...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script type="module" src="/logout.js"></script>
+    <script type="module" src="/timesheets.js"></script>
+</body>
+</html>
