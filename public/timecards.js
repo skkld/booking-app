@@ -103,11 +103,11 @@ async function loadTimecards() {
         .eq('status', 'pending')
         .order('clock_in', { ascending: false });
 
-    if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="9">Error loading timecards.</td></tr>`; return; }
+    if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="10">Error loading timecards.</td></tr>`; return; }
     
     document.getElementById('pending-count').textContent = entries.length;
     if (entries.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="9">No pending timecards.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="10">No pending timecards.</td></tr>`;
         return;
     }
 
@@ -124,19 +124,24 @@ async function loadTimecards() {
 
         const payroll = calculatePayroll(entry.clock_in, entry.clock_out, rules, isSunday, rate, reimb);
 
+        // New Data Formats
+        const dateStr = new Date(entry.clock_in).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeRange = `${new Date(entry.clock_in).toLocaleTimeString([], {timeStyle:'short'})} - ${new Date(entry.clock_out).toLocaleTimeString([], {timeStyle:'short'})}`;
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>
                 <strong>${entry.employees.full_name}</strong>
                 <div style="font-size:0.8em; color:#aaa;">Role: ${entry.shifts.role} | Rate: $${rate.toFixed(2)}</div>
             </td>
+            <td>${entry.shifts.projects.name}</td>
             <td>${entry.shifts.name}</td>
-            <td>${new Date(entry.clock_in).toLocaleTimeString([], {timeStyle:'short'})} - ${new Date(entry.clock_out).toLocaleTimeString([], {timeStyle:'short'})}</td>
+            <td>${dateStr}</td>
+            <td>${timeRange}</td>
             <td>${payroll.regular}</td>
             <td>${payroll.overtime}</td>
             <td>$${reimb.toFixed(2)}</td>
             <td style="color: var(--primary-color); font-weight: bold;">$${payroll.totalPay}</td>
-            <td><span style="color: var(--status-yellow-text);">Pending</span></td>
             <td>
                 <button class="btn btn-primary btn-approve" data-id="${entry.id}" data-total="${payroll.totalPay}">Approve</button>
                 <button class="btn btn-danger btn-reject" data-id="${entry.id}">Reject</button>
