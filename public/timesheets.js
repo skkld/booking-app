@@ -3,7 +3,7 @@ import { _supabase } from './auth.js';
 let allAssignments = [];
 let allEntries = [];
 let allProjects = [];
-let viewMode = 'active'; // 'active' (drafts/new) or 'history' (pending/approved)
+let viewMode = 'active'; // 'active' = working/new, 'history' = submitted/approved
 
 const formatTimeValue = (iso) => {
     if (!iso) return '';
@@ -17,105 +17,123 @@ async function loadData() {
     const { data: projects } = await _supabase.from('projects').select('id, name').order('name');
     allProjects = projects || [];
     const projSelect = document.getElementById('filter-project');
-    // Keep selected value if reloading
-    const currentVal = projSelect.value;
-    projSelect.innerHTML = '<option value="">All Projects</option>';
-    allProjects.forEach(p => {
-        projSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-    });
-    projSelect.value = currentVal;
+    
+    if (projSelect) {
+        const currentVal = projSelect.value;
+        projSelect.innerHTML = '<option value="">All Projects</option>';
+        allProjects.forEach(p => {
+            projSelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+        });
+        projSelect.value = currentVal;
+    }
 
     renderTable();
 }
 
 async function renderTable() {
     const tbody = document.getElementById('timesheet-list');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
 
-    // 2. Fetch Assignments & Entries based on filters
     const projectId = document.getElementById('filter-project').value;
     const dateFilter = document.getElementById('filter-date').value;
 
-    // Base query for assignments (The schedule)
+    // 2. Fetch Assignments (The Schedule)
     let query = _supabase.from('assignments')
         .select(`
             id, employee_id, shift_id,
             employees(full_name),
             shifts(id, name, role, start_time, end_time, project_id, projects(name))
         `)
-        .order('shifts(start_time)');
+        .order('id', { ascending: true }); // Basic ordering
 
-    if (projectId) query = query.eq('shifts.project_id', projectId);
+    // Apply Project Filter to the query if selected
+    // Note: Filtering on nested relations in Supabase can be tricky, 
+    // so we'll fetch all and filter in JS for reliability here, or simpler query if table size is small.
     
     const { data: assignments, error } = await query;
-    if (error) { console.error(error); tbody.innerHTML = '<tr><td colspan="9">Error</td></tr>'; return; }
+    
+    if (error) { 
+        console.error("Error fetching assignments:", error); 
+        tbody.innerHTML = '<tr><td colspan="9">Error loading data. Check console.</td></tr>'; 
+        return; 
+    }
 
-    // Fetch existing timecards
+    // 3. Fetch Timecards (The Actuals)
     const { data: entries } = await _supabase.from('timecard_entries').select('*');
     allEntries = entries || [];
 
     tbody.innerHTML = '';
     let count = 0;
 
-    // 3. Filter and Render
+    // 4. Process and Render
     assignments.forEach(asg => {
-        if (!asg.shifts) return; // Skip orphans
+        // Filter invalid/orphan data
+        if (!asg.shifts || !asg.shifts.projects) return;
 
-        // Date Filter Logic
-        const shiftDate = new Date(asg.shifts.start_time).toISOString().split('T')[0];
-        if (dateFilter && shiftDate !== dateFilter) return;
+        // JS Filter: Project
+        if (projectId && asg.shifts.project_id != projectId) return;
 
-        // Find existing entry
+        // JS Filter: Date
+        const shiftDateVal = new Date(asg.shifts.start_time).toISOString().split('T')[0];
+        if (dateFilter && shiftDateVal !== dateFilter) return;
+
+        // Match Entry
         const entry = allEntries.find(e => e.shift_id === asg.shifts.id && e.employee_id === asg.employee_id);
-
-        // VIEW MODE LOGIC
-        // Active Mode: Show items with NO entry, or items with 'draft' status
-        // History Mode: Show items with 'pending', 'approved', 'rejected'
         const status = entry ? entry.status : 'new';
         
-        if (viewMode === 'active') {
-            if (status !== 'new' && status !== 'draft') return;
-        } else {
-            if (status === 'new' || status === 'draft') return;
-        }
+        // VIEW MODE LOGIC
+        // Active: New (Empty), Draft (Saved but not sent), Clocked In (Working)
+        // History: Pending (Sent for approval), Approved, Rejected
+        const isActiveView = (status === 'new' || status === 'draft' || status === 'clocked_in');
+        
+        if (viewMode === 'active' && !isActiveView) return;
+        if (viewMode === 'history' && isActiveView) return;
 
         count++;
         
-        // Pre-fill values
-        let inVal = entry ? formatTimeValue(entry.clock_in) : formatTimeValue(asg.shifts.start_time);
-        let outVal = entry ? formatTimeValue(entry.clock_out) : formatTimeValue(asg.shifts.end_time);
-        let breakVal = entry ? entry.break_duration_minutes : 0;
-        let reimbVal = entry ? entry.reimbursement_amount : 0;
-        let statusLabel = status === 'new' ? '<span class="status-draft">New</span>' : `<span class="status-saved">${status}</span>`;
+        // Prepare Values
+        let inVal = entry && entry.clock_in ? formatTimeValue(entry.clock_in) : formatTimeValue(asg.shifts.start_time);
+        let outVal = entry && entry.clock_out ? formatTimeValue(entry.clock_out) : formatTimeValue(asg.shifts.end_time);
+        let breakVal = entry ? (entry.break_duration_minutes || 0) : 0;
+        let reimbVal = entry ? (entry.reimbursement_amount || 0) : 0;
         
+        // Status Label
+        let statusLabel = `<span class="status-draft">New</span>`;
+        if (status === 'draft') statusLabel = `<span class="status-saved">Draft</span>`;
+        if (status === 'clocked_in') statusLabel = `<span style="color: var(--primary-color); font-weight:bold">Clocked In</span>`;
+        if (status === 'pending') statusLabel = `<span style="color: var(--status-yellow-text);">Pending</span>`;
+        if (status === 'approved') statusLabel = `<span class="status-completed">Approved</span>`;
+
+        const dateDisplay = new Date(asg.shifts.start_time).toLocaleDateString();
+
         if (viewMode === 'history') {
-             statusLabel = `<span class="status-completed">${status}</span>`;
-             // Read-only view for history
-             inVal = entry ? new Date(entry.clock_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
-             outVal = entry ? new Date(entry.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
+             // READ ONLY ROW
+             const displayIn = entry ? new Date(entry.clock_in).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
+             const displayOut = entry && entry.clock_out ? new Date(entry.clock_out).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
              
              const row = document.createElement('tr');
              row.innerHTML = `
-                <td>${new Date(asg.shifts.start_time).toLocaleDateString()}</td>
+                <td>${dateDisplay}</td>
                 <td>${asg.shifts.projects.name}</td>
                 <td><strong>${asg.employees.full_name}</strong><br><span style="font-size:0.8em">${asg.shifts.role}</span></td>
-                <td>${inVal}</td>
-                <td>${outVal}</td>
+                <td>${displayIn}</td>
+                <td>${displayOut}</td>
                 <td>${breakVal}m</td>
                 <td>$${reimbVal}</td>
                 <td>${statusLabel}</td>
-                <td><button class="btn btn-secondary btn-sm" onclick="alert('Edit via Timecards page')">View</button></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="alert('Already submitted. Go to Timecards page to manage.')">Locked</button></td>
              `;
              tbody.appendChild(row);
         } else {
-            // Editable Input view for Active
+            // EDITABLE ROW
             const row = document.createElement('tr');
             row.dataset.shiftId = asg.shifts.id;
             row.dataset.empId = asg.employee_id;
             row.dataset.entryId = entry ? entry.id : '';
 
             row.innerHTML = `
-                <td>${new Date(asg.shifts.start_time).toLocaleDateString()}</td>
+                <td>${dateDisplay}</td>
                 <td>${asg.shifts.projects.name}</td>
                 <td><strong>${asg.employees.full_name}</strong><br><span style="font-size:0.8em">${asg.shifts.role}</span></td>
                 <td><input type="datetime-local" class="ts-input inp-in" value="${inVal}"></td>
@@ -125,18 +143,19 @@ async function renderTable() {
                 <td class="status-cell">${statusLabel}</td>
                 <td style="display:flex; gap:5px;">
                     <button class="btn btn-secondary btn-save-row">Save</button>
-                    <button class="btn btn-primary btn-complete-row">Complete</button>
+                    <button class="btn btn-primary btn-complete-row">Submit</button>
                 </td>
             `;
             tbody.appendChild(row);
             
-            // Attach listeners to this row's buttons
             row.querySelector('.btn-save-row').addEventListener('click', () => saveRow(row, 'draft'));
             row.querySelector('.btn-complete-row').addEventListener('click', () => saveRow(row, 'pending'));
         }
     });
 
-    if (count === 0) tbody.innerHTML = '<tr><td colspan="9">No records found for this view.</td></tr>';
+    if (count === 0) {
+        tbody.innerHTML = `<tr><td colspan="9">No records found for this view. <br><small>(Try switching to "View Completed History" or creating new shifts)</small></td></tr>`;
+    }
 }
 
 async function saveRow(row, newStatus) {
@@ -146,12 +165,12 @@ async function saveRow(row, newStatus) {
     
     const clockIn = row.querySelector('.inp-in').value;
     const clockOut = row.querySelector('.inp-out').value;
-    const breakDur = row.querySelector('.inp-break').value;
-    const reimb = row.querySelector('.inp-reimb').value;
+    const breakDur = parseFloat(row.querySelector('.inp-break').value) || 0;
+    const reimb = parseFloat(row.querySelector('.inp-reimb').value) || 0;
 
     if (!clockIn || !clockOut) return alert("Time In and Out are required.");
 
-    // Basic Payroll Calc logic (Simplified for save)
+    // Basic Payroll Calc (Recalculated on approval anyway)
     const start = new Date(clockIn);
     const end = new Date(clockOut);
     const totalHrs = ((end - start) / 3600000) - (breakDur/60);
@@ -168,19 +187,30 @@ async function saveRow(row, newStatus) {
     };
 
     let error;
-    if (entryId) {
+    // UPSERT LOGIC
+    if (entryId && entryId !== 'undefined') {
         ({ error } = await _supabase.from('timecard_entries').update(payload).eq('id', entryId));
     } else {
-        const { data, error: insertError } = await _supabase.from('timecard_entries').insert([payload]).select();
-        if (data) row.dataset.entryId = data[0].id; // Save new ID to row
-        error = insertError;
+        // Double check database just in case ID wasn't in DOM
+        const { data: existing } = await _supabase.from('timecard_entries').select('id').eq('shift_id', shiftId).eq('employee_id', empId).single();
+        if (existing) {
+            ({ error } = await _supabase.from('timecard_entries').update(payload).eq('id', existing.id));
+        } else {
+            const { data, error: insertError } = await _supabase.from('timecard_entries').insert([payload]).select();
+            if (data) row.dataset.entryId = data[0].id;
+            error = insertError;
+        }
     }
 
     if (error) {
         alert(error.message);
     } else {
         if (newStatus === 'pending') {
-            row.remove(); // Remove from list if completed
+            row.remove(); // Remove from "Active" list as it is now "History" (Pending)
+            // Check if table empty
+            if (document.getElementById('timesheet-list').children.length === 0) {
+                renderTable();
+            }
         } else {
             row.querySelector('.status-cell').innerHTML = '<span class="status-saved">Saved</span>';
         }
@@ -189,22 +219,24 @@ async function saveRow(row, newStatus) {
 
 async function saveAll() {
     const rows = document.querySelectorAll('#timesheet-list tr');
+    let savedCount = 0;
     for (const row of rows) {
         if (row.querySelector('.btn-save-row')) {
             await saveRow(row, 'draft');
+            savedCount++;
         }
     }
-    alert("All visible rows saved as Drafts.");
+    if(savedCount > 0) alert("All rows saved as Drafts.");
 }
 
-// Listeners
 document.getElementById('apply-filters').addEventListener('click', renderTable);
 document.getElementById('save-all-btn').addEventListener('click', saveAll);
 
 document.getElementById('toggle-view-btn').addEventListener('click', (e) => {
     viewMode = viewMode === 'active' ? 'history' : 'active';
     e.target.textContent = viewMode === 'active' ? 'View Completed History' : 'View Active Entry';
-    document.getElementById('save-all-btn').style.display = viewMode === 'active' ? 'inline-block' : 'none';
+    const saveAllBtn = document.getElementById('save-all-btn');
+    if(saveAllBtn) saveAllBtn.style.display = viewMode === 'active' ? 'inline-block' : 'none';
     renderTable();
 });
 
