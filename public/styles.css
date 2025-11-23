@@ -367,4 +367,18 @@ input[type="checkbox"] {
     max-height: 300px;
     overflow-y: auto;
     background-color: var(--bg-input);
+}/* --- Small Buttons for Tables --- */
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    height: fit-content;
+    align-self: center;
+}
+
+/* Flex container for Time Input + Button */
+.time-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
