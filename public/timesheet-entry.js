@@ -54,7 +54,7 @@ async function loadTimeSheet() {
         const row = document.createElement('tr');
         row.dataset.employeeId = assignment.employees.id;
         
-        // **FIXED: Removed value attributes entirely to prevent formatting errors**
+        // We do NOT set value="" attributes here. The inputs start empty.
         row.innerHTML = `
             <td><strong>${assignment.employees.full_name}</strong></td>
             <td>
@@ -179,6 +179,7 @@ document.getElementById('time-entry-form').addEventListener('submit', async (eve
 
     const timecardEntries = [];
     const rows = document.querySelectorAll('#crew-time-entry-list tr');
+    const rules = currentProject.is_union_project ? unionRules : companyRules;
 
     for (const row of rows) {
         const employeeId = row.dataset.employeeId;
@@ -192,10 +193,7 @@ document.getElementById('time-entry-form').addEventListener('submit', async (eve
             const grossHours = (end - start) / 3600000;
             let breakDed = 0;
             
-            const rules = currentProject.is_union_project ? unionRules : companyRules;
             if (grossHours > rules.auto_break_threshold) { breakDed = rules.auto_break_duration; }
-            
-            // We calculate Net Hours for the record
             const netHours = grossHours - (breakDed / 60);
 
             timecardEntries.push({
