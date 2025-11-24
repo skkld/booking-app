@@ -7,7 +7,14 @@ let allShifts = [];
 let allAssignments = [];
 let allEmployees = [];
 
-// --- 1. PAYROLL CALCULATION ENGINE ---
+// Helper to format date for datetime-local
+const formatDateTimeLocal = (date) => {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+};
+
+// --- PAYROLL CALCULATION ENGINE ---
 function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbursement) {
     const clockIn = new Date(clockInStr);
     const clockOut = new Date(clockOutStr);
@@ -31,37 +38,39 @@ function calculatePayroll(clockInStr, clockOutStr, rules, isSunday, rate, reimbu
         } else { 
             regular = netHours; 
         }
-        // Night Premium (Simplified check)
+        
+        // Night Premium (simplified)
         const [nightStartHour] = rules.night_premium_start.split(':').map(Number);
         const [nightEndHour] = rules.night_premium_end.split(':').map(Number);
         if (clockIn.getHours() >= nightStartHour || clockIn.getHours() < nightEndHour) {
-            night = netHours; 
+            night = netHours;
         }
     } else {
-        regular = netHours; // Fallback
+        // Fallback if no rules found
+        regular = netHours;
     }
 
-    // Calculate Financials
+    // CALCULATE TOTAL PAY ($)
     const numRate = parseFloat(rate) || 0;
     const numReimb = parseFloat(reimbursement) || 0;
     
-    const basePay = (regular * numRate) + (overtime * numRate * 1.5); // Assuming 1.5x for OT
+    const basePay = (regular * numRate) + (overtime * numRate * 1.5);
     const totalPay = basePay + numReimb;
 
     return { 
         regular: regular.toFixed(2), 
         overtime: overtime.toFixed(2), 
-        night: night.toFixed(2),
+        night: night.toFixed(2), 
         totalHours: netHours.toFixed(2),
         totalPay: totalPay.toFixed(2)
     };
 }
 
-// --- 2. HELPER: FIND CORRECT RATE ---
+// --- HELPER: FIND CORRECT RATE ---
 function getEffectiveRate(employee, shiftRole) {
     if (!employee) return 0;
     
-    let rate = employee.rate || 0; // Start with base rate
+    let rate = employee.rate || 0; // Base rate
 
     if (shiftRole && employee.employee_positions && employee.employee_positions.length > 0) {
         const normalize = (str) => str ? str.trim().toLowerCase() : '';
@@ -78,14 +87,13 @@ function getEffectiveRate(employee, shiftRole) {
     return parseFloat(rate);
 }
 
-// --- 3. MAIN DISPLAY FUNCTION ---
+// --- MAIN DISPLAY FUNCTION ---
 async function loadTimecards() {
     if (!companyRules) { const { data } = await _supabase.from('payroll_rules').select('*').eq('id', 1).single(); companyRules = data; }
     if (!unionRules) { const { data } = await _supabase.from('union_payroll_rules').select('*').eq('id', 1).single(); unionRules = data; }
     if (allProjects.length === 0) { const { data } = await _supabase.from('projects').select('id, is_union_project'); allProjects = data || []; }
 
     const tableBody = document.getElementById('timecard-list-table');
-    
     const { data: entries, error } = await _supabase
         .from('timecard_entries')
         .select(`
@@ -103,11 +111,15 @@ async function loadTimecards() {
         .eq('status', 'pending')
         .order('clock_in', { ascending: false });
 
-    if (error) { console.error(error); tableBody.innerHTML = `<tr><td colspan="9">Error loading timecards.</td></tr>`; return; }
+    if (error) { 
+        console.error(error); 
+        tableBody.innerHTML = `<tr><td colspan="9">Error loading timecards. See console.</td></tr>`; 
+        return; 
+    }
     
     document.getElementById('pending-count').textContent = entries.length;
     if (entries.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="9">No pending timecards.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="9">No pending timecards awaiting approval.</td></tr>`;
         return;
     }
 
@@ -128,7 +140,7 @@ async function loadTimecards() {
         row.innerHTML = `
             <td>
                 <strong>${entry.employees.full_name}</strong>
-                <div style="font-size:0.8em; color:#aaa;">Role: ${entry.shifts.role} | Rate: $${rate.toFixed(2)}</div>
+                <div style="font-size:0.8em; color:#aaa;">Rate: $${rate.toFixed(2)}</div>
             </td>
             <td>${entry.shifts.name}</td>
             <td>${new Date(entry.clock_in).toLocaleTimeString([], {timeStyle:'short'})} - ${new Date(entry.clock_out).toLocaleTimeString([], {timeStyle:'short'})}</td>
@@ -156,7 +168,7 @@ async function loadTimecards() {
     document.querySelectorAll('.btn-reject').forEach(btn => btn.addEventListener('click', showRejectionModal));
 }
 
-// --- 4. APPROVAL HANDLERS ---
+// --- APPROVAL HANDLERS ---
 function showRejectionModal(event) {
     document.getElementById('reject-entry-id').value = event.target.dataset.id;
     document.getElementById('rejection-modal').style.display = 'flex';
@@ -173,10 +185,8 @@ document.getElementById('rejection-form').addEventListener('submit', async (even
 });
 document.getElementById('reject-modal-close').onclick = () => { document.getElementById('rejection-modal').style.display = 'none'; };
 
-
-// --- 5. MANUAL ENTRY LOGIC ---
+// --- MANUAL ENTRY LOGIC ---
 async function showManualEntryModal() {
-    // Use Promise.all for parallel fetching
     const [projectsRes, shiftsRes, assignmentsRes, employeesRes] = await Promise.all([
         _supabase.from('projects').select('id, name, is_union_project').order('name'),
         _supabase.from('shifts').select('id, name, role, project_id'),
@@ -196,13 +206,20 @@ async function showManualEntryModal() {
     document.getElementById('shift-select').innerHTML = '<option value="">Select a Project First</option>';
     document.getElementById('employee-select').innerHTML = '<option value="">Select a Shift First</option>';
     
-    // Reset Form Fields
     document.getElementById('clock-in').value = '';
     document.getElementById('clock-out').value = '';
     document.getElementById('manual-reimb').value = 0;
 
     document.getElementById('manual-entry-modal').style.display = 'flex';
 }
+
+// Listeners for "Now" Buttons
+document.getElementById('btn-set-clock-in').addEventListener('click', () => {
+    document.getElementById('clock-in').value = formatDateTimeLocal(new Date());
+});
+document.getElementById('btn-set-clock-out').addEventListener('click', () => {
+    document.getElementById('clock-out').value = formatDateTimeLocal(new Date());
+});
 
 function populateShifts(projectId) {
     const shiftSelect = document.getElementById('shift-select');
@@ -219,7 +236,6 @@ function populateEmployees(shiftId) {
     assignedEmployees.forEach(e => { employeeSelect.innerHTML += `<option value="${e.id}">${e.full_name}</option>`; });
 }
 
-// **NEW: Check for existing record to PRE-FILL form**
 async function checkExistingTimecard(employeeId) {
     const shiftId = document.getElementById('shift-select').value;
     if (!shiftId || !employeeId) return;
@@ -258,8 +274,8 @@ async function handleManualEntrySubmit(event) {
     const shift = allShifts.find(s => s.id == shiftId);
     const project = allProjects.find(p => p.id == shift.project_id);
     const employee = allEmployees.find(e => e.id == employeeId);
-    
     const rules = project?.is_union_project ? unionRules : companyRules;
+    
     const clockIn = form.elements['clock-in'].value;
     const clockOut = form.elements['clock-out'].value;
     const isSunday = new Date(clockIn).getDay() === 0;
@@ -278,7 +294,6 @@ async function handleManualEntrySubmit(event) {
         reimbursement_amount: reimbAmount
     };
 
-    // **UPSERT LOGIC: Check if exists, then Update or Insert**
     const { data: existing } = await _supabase
         .from('timecard_entries')
         .select('id')
@@ -302,12 +317,11 @@ async function handleManualEntrySubmit(event) {
     }
 }
 
-// Listeners
 document.getElementById('manual-entry-btn').addEventListener('click', showManualEntryModal);
 document.getElementById('manual-entry-close').onclick = () => { document.getElementById('manual-entry-modal').style.display = 'none'; };
 document.getElementById('manual-entry-form').addEventListener('submit', handleManualEntrySubmit);
 document.getElementById('project-select').addEventListener('change', (e) => populateShifts(e.target.value));
 document.getElementById('shift-select').addEventListener('change', (e) => populateEmployees(e.target.value));
-document.getElementById('employee-select').addEventListener('change', (e) => checkExistingTimecard(e.target.value)); // New Pre-fill Listener
+document.getElementById('employee-select').addEventListener('change', (e) => checkExistingTimecard(e.target.value));
 
 loadTimecards();
