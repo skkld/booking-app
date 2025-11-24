@@ -93,13 +93,13 @@ async function loadTimeSheet() {
             <td>
                 <div class="time-input-group">
                     <input type="datetime-local" class="clock-in-input" value="${startValue}">
-                    <button type="button" class="btn btn-secondary btn-sm set-now-btn" data-target="in">Now</button>
+                    <button type="button" class="btn btn-secondary btn-sm set-now-btn" data-target="in">Clock In</button>
                 </div>
             </td>
             <td>
                 <div class="time-input-group">
                     <input type="datetime-local" class="clock-out-input" value="${endValue}">
-                    <button type="button" class="btn btn-secondary btn-sm set-now-btn" data-target="out">Now</button>
+                    <button type="button" class="btn btn-secondary btn-sm set-now-btn" data-target="out">Clock Out</button>
                 </div>
             </td>
             <td>
@@ -270,10 +270,6 @@ document.getElementById('time-entry-form').addEventListener('submit', async (eve
     }
 
     // UPSERT Logic: Check existing entries to update or insert new
-    // Note: Supabase 'upsert' works best if we have a unique constraint on (shift_id, employee_id),
-    // but here we will do a simpler loop to delete old entries for these users and insert new ones
-    // to ensure we don't get duplicates.
-    
     try {
         const employeeIds = timecardEntries.map(e => e.employee_id);
         
