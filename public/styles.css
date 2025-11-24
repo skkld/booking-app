@@ -381,4 +381,21 @@ input[type="checkbox"] {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+}/* --- Time Entry Action Buttons --- */
+.btn-clock-in {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981; /* Green */
+    border-color: rgba(16, 185, 129, 0.2);
+}
+.btn-clock-in:hover {
+    background-color: rgba(16, 185, 129, 0.2);
+}
+
+.btn-clock-out {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444; /* Red */
+    border-color: rgba(239, 68, 68, 0.2);
+}
+.btn-clock-out:hover {
+    background-color: rgba(239, 68, 68, 0.2);
 }
