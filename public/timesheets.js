@@ -3,39 +3,43 @@ import { _supabase } from './auth.js';
 async function loadTimesheetsList() {
     const tableBody = document.getElementById('timesheets-list-table');
 
-    // 1. Fetch all shifts for ACTIVE projects
-    // We join with timecard_entries to see if data exists
+    // 1. Fetch ALL shifts and their project info
+    // We remove the !inner filter to ensure we get data back, then filter in JS
     const { data: shifts, error } = await _supabase
         .from('shifts')
         .select(`
             id, name, role, start_time, end_time,
-            projects!inner(id, name, status),
-            timecard_entries(count)
+            projects (id, name, status),
+            timecard_entries (count)
         `)
-        .eq('projects.status', 'active')
         .order('start_time', { ascending: false });
 
     if (error) {
-        console.error(error);
-        tableBody.innerHTML = `<tr><td colspan="6">Error loading shifts.</td></tr>`;
+        console.error("Error fetching shifts:", error);
+        tableBody.innerHTML = `<tr><td colspan="6">Error loading shifts. See console.</td></tr>`;
         return;
     }
 
-    if (shifts.length === 0) {
+    // 2. Filter for Active Projects Only
+    // (This prevents shifts from deleted/completed projects from cluttering the list)
+    const activeShifts = shifts.filter(shift => shift.projects && shift.projects.status === 'active');
+
+    if (activeShifts.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="6">No active shifts found.</td></tr>`;
         return;
     }
 
     tableBody.innerHTML = '';
-    shifts.forEach(shift => {
+    activeShifts.forEach(shift => {
         const date = new Date(shift.start_time).toLocaleDateString();
         const time = new Date(shift.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
-        // Check if any entries have been saved (count > 0)
+        // Check if entries exist
         const entryCount = shift.timecard_entries[0]?.count || 0;
+        
         let statusBadge = '<span style="color: var(--text-muted);">Not Started</span>';
         if (entryCount > 0) {
-            statusBadge = `<span style="color: var(--primary-color); font-weight:bold;">${entryCount} Entries Saved</span>`;
+            statusBadge = `<span style="color: var(--primary-color); font-weight:bold;">${entryCount} Entries</span>`;
         }
 
         const row = document.createElement('tr');

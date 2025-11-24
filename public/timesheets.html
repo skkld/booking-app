@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Time Sheet Entry</title>
+    <title>Timesheets - Entry</title>
+    
     <script type="module" src="/auth.js"></script>
+    
     <link rel="stylesheet" href="/styles.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
@@ -28,40 +30,34 @@
 
     <main class="main-content">
         <header class="header">
-            <div>
-                <h1 id="project-name">Loading...</h1>
-                <h3 id="shift-name-role" style="color: var(--text-muted); font-weight: 500;"></h3>
-            </div>
-            <div class="header-actions">
-                <button id="fill-all-btn" class="btn btn-secondary">Fill All with Scheduled Times</button>
-            </div>
+            <h1>Timesheets (Data Entry)</h1>
         </header>
 
-        <form id="time-entry-form">
-            <div class="card">
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Crew Name</th>
-                                <th>In</th>
-                                <th>Out</th>
-                                <th style="width: 100px;">Reimb ($)</th>
-                                <th style="width: 200px;">Est. Breakdown</th>
-                            </tr>
-                        </thead>
-                        <tbody id="crew-time-entry-list"></tbody>
-                    </table>
-                </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>Open Shifts for Time Entry</h3>
             </div>
-            <div class="form-actions" style="text-align: right; margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
-                <a href="#" id="cancel-btn" class="btn btn-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Save All Time Entries</button>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Shift Name</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Entry Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timesheets-list-table">
+                        <tr><td colspan="6">Loading shifts...</td></tr>
+                    </tbody>
+                </table>
             </div>
-        </form>
+        </div>
     </main>
     
     <script type="module" src="/logout.js"></script>
-    <script type="module" src="/timesheet-entry.js"></script>
+    <script type="module" src="/timesheets.js"></script>
 </body>
 </html>
