@@ -5,25 +5,42 @@ let currentProject = null;
 let companyRules = null;
 let unionRules = null;
 
-// Helper to format date for datetime-local
+// Helper to format date for datetime-local input (YYYY-MM-DDTHH:MM)
 const formatDateTimeLocal = (date) => {
-    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-    return date.toISOString().slice(0, 16);
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
 };
 
 async function loadTimeSheet() {
     const urlParams = new URLSearchParams(window.location.search);
     const shiftId = urlParams.get('shift_id');
-    if (!shiftId) return document.body.innerHTML = '<h1>No Shift ID provided.</h1>';
+    
+    if (!shiftId) {
+        document.body.innerHTML = '<h1>No Shift ID provided.</h1>';
+        return;
+    }
 
     // 1. Fetch Shift Data
     const { data: shift, error } = await _supabase
         .from('shifts')
-        .select(`*, projects(*), assignments(*, employees(*))`)
+        .select(`
+            *,
+            projects(*),
+            assignments(
+                *,
+                employees(*)
+            )
+        `)
         .eq('id', shiftId)
         .single();
     
-    if (error || !shift) return document.body.innerHTML = '<h1>Could not load shift data.</h1>';
+    if (error || !shift) {
+        console.error("Error loading shift:", error);
+        document.body.innerHTML = '<h1>Could not load shift data.</h1>';
+        return;
+    }
+
     currentShift = shift;
     currentProject = shift.projects;
 
@@ -38,38 +55,56 @@ async function loadTimeSheet() {
     // 3. Populate Headers
     document.getElementById('project-name').textContent = shift.projects.name;
     document.getElementById('shift-name-role').textContent = `${shift.name} - ${shift.role}`;
+    
     const cancelButton = document.getElementById('cancel-btn');
-    if (cancelButton) cancelButton.href = `/project-details.html?id=${shift.projects.id}`;
+    if (cancelButton) {
+        cancelButton.href = `/project-details.html?id=${shift.projects.id}`;
+    }
 
     // 4. Populate Table
     const tableBody = document.getElementById('crew-time-entry-list');
     tableBody.innerHTML = '';
 
-    if (shift.assignments.length === 0) {
+    if (!shift.assignments || shift.assignments.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="5">No crew assigned to this shift.</td></tr>';
         return;
     }
+
+    // 5. Check for existing timecard entries to pre-fill
+    const { data: existingEntries } = await _supabase
+        .from('timecard_entries')
+        .select('*')
+        .eq('shift_id', shiftId);
 
     shift.assignments.forEach(assignment => {
         const row = document.createElement('tr');
         row.dataset.employeeId = assignment.employees.id;
         
-        // We do NOT set value="" attributes here. The inputs start empty.
+        // Find existing entry if it exists
+        const existing = existingEntries ? existingEntries.find(e => e.employee_id === assignment.employees.id) : null;
+        
+        // Pre-fill values
+        const startValue = existing ? formatDateTimeLocal(new Date(existing.clock_in)) : "";
+        const endValue = existing && existing.clock_out ? formatDateTimeLocal(new Date(existing.clock_out)) : "";
+        const reimbValue = existing ? (existing.reimbursement_amount || "") : "";
+
         row.innerHTML = `
             <td><strong>${assignment.employees.full_name}</strong></td>
             <td>
                 <div class="time-input-group">
-                    <input type="datetime-local" class="clock-in-input">
+                    <input type="datetime-local" class="clock-in-input" value="${startValue}">
                     <button type="button" class="btn btn-secondary btn-sm set-now-btn" data-target="in">Now</button>
                 </div>
             </td>
             <td>
                 <div class="time-input-group">
-                    <input type="datetime-local" class="clock-out-input">
+                    <input type="datetime-local" class="clock-out-input" value="${endValue}">
                     <button type="button" class="btn btn-secondary btn-sm set-now-btn" data-target="out">Now</button>
                 </div>
             </td>
-            <td><input type="number" class="reimb-input" step="0.01" placeholder="0.00" style="width: 80px;"></td>
+            <td>
+                <input type="number" class="reimb-input" step="0.01" placeholder="0.00" value="${reimbValue}" style="width: 80px;">
+            </td>
             <td class="breakdown-cell" style="font-size: 0.85rem; color: var(--text-muted);">-</td>
         `;
         tableBody.appendChild(row);
@@ -79,19 +114,21 @@ async function loadTimeSheet() {
         const endInput = row.querySelector('.clock-out-input');
         const breakdownCell = row.querySelector('.breakdown-cell');
         
+        // "Now" button handlers
         const inBtn = row.querySelector('.set-now-btn[data-target="in"]');
         const outBtn = row.querySelector('.set-now-btn[data-target="out"]');
 
         inBtn.addEventListener('click', () => {
             startInput.value = formatDateTimeLocal(new Date());
-            startInput.dispatchEvent(new Event('input'));
+            startInput.dispatchEvent(new Event('input')); // Trigger calc
         });
 
         outBtn.addEventListener('click', () => {
             endInput.value = formatDateTimeLocal(new Date());
-            endInput.dispatchEvent(new Event('input'));
+            endInput.dispatchEvent(new Event('input')); // Trigger calc
         });
 
+        // Real-time calculation function
         const updateCalc = () => {
             if (startInput.value && endInput.value) {
                 const breakdown = calculateBreakdown(startInput.value, endInput.value);
@@ -101,12 +138,18 @@ async function loadTimeSheet() {
             }
         };
 
+        // Attach listeners to inputs
         startInput.addEventListener('input', updateCalc);
         endInput.addEventListener('input', updateCalc);
+
+        // Run calculation immediately if data is pre-filled
+        if (startValue && endValue) {
+            updateCalc();
+        }
     });
 }
 
-// --- The Logic Engine ---
+// --- The Logic Engine (Calculates breakdown for display) ---
 function calculateBreakdown(startStr, endStr) {
     const start = new Date(startStr);
     const end = new Date(endStr);
@@ -114,14 +157,15 @@ function calculateBreakdown(startStr, endStr) {
     if (end <= start) return '<span style="color: var(--status-red-text);">Invalid Time</span>';
 
     const rules = currentProject.is_union_project ? unionRules : companyRules;
+    
     if (!rules) return "Rules Error";
 
     const grossHours = (end - start) / 3600000;
     let breakDed = 0;
 
     // Auto-Break Deduction
-    if (grossHours > rules.auto_break_threshold) {
-        breakDed = rules.auto_break_duration / 60;
+    if (rules.auto_break_threshold && grossHours > rules.auto_break_threshold) {
+        breakDed = (rules.auto_break_duration || 0) / 60;
     }
     
     const netHours = Math.max(0, grossHours - breakDed);
@@ -163,16 +207,22 @@ document.getElementById('fill-all-btn').addEventListener('click', () => {
     const scheduledEnd = formatDateTimeLocal(new Date(currentShift.end_time));
 
     document.querySelectorAll('.clock-in-input').forEach(input => {
-        input.value = scheduledStart;
-        input.dispatchEvent(new Event('input'));
+        // Only fill if empty
+        if (!input.value) {
+            input.value = scheduledStart;
+            input.dispatchEvent(new Event('input'));
+        }
     });
     document.querySelectorAll('.clock-out-input').forEach(input => {
-        input.value = scheduledEnd;
-        input.dispatchEvent(new Event('input'));
+        // Only fill if empty
+        if (!input.value) {
+            input.value = scheduledEnd;
+            input.dispatchEvent(new Event('input'));
+        }
     });
 });
 
-// Form submission functionality
+// Form submission functionality (Saves all rows)
 document.getElementById('time-entry-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!currentShift) return;
@@ -193,10 +243,14 @@ document.getElementById('time-entry-form').addEventListener('submit', async (eve
             const grossHours = (end - start) / 3600000;
             let breakDed = 0;
             
-            if (grossHours > rules.auto_break_threshold) { breakDed = rules.auto_break_duration; }
+            if (grossHours > rules.auto_break_threshold) { 
+                breakDed = rules.auto_break_duration; 
+            }
+            
             const netHours = grossHours - (breakDed / 60);
 
-            timecardEntries.push({
+            // Prepare the entry object
+            const entryData = {
                 shift_id: currentShift.id,
                 employee_id: employeeId,
                 clock_in: start.toISOString(),
@@ -205,22 +259,48 @@ document.getElementById('time-entry-form').addEventListener('submit', async (eve
                 break_duration_minutes: breakDed,
                 reimbursement_amount: reimbAmount,
                 status: 'pending'
-            });
+            };
+
+            timecardEntries.push(entryData);
         }
     }
 
     if (timecardEntries.length === 0) {
-        return alert('No valid time entries to save.');
+        return alert('No valid time entries to save. Please enter Clock In/Out times.');
     }
 
-    const { error } = await _supabase.from('timecard_entries').insert(timecardEntries);
+    // UPSERT Logic: Check existing entries to update or insert new
+    // Note: Supabase 'upsert' works best if we have a unique constraint on (shift_id, employee_id),
+    // but here we will do a simpler loop to delete old entries for these users and insert new ones
+    // to ensure we don't get duplicates.
+    
+    try {
+        const employeeIds = timecardEntries.map(e => e.employee_id);
+        
+        // 1. Delete existing entries for this shift and these specific employees
+        const { error: deleteError } = await _supabase
+            .from('timecard_entries')
+            .delete()
+            .eq('shift_id', currentShift.id)
+            .in('employee_id', employeeIds);
+            
+        if (deleteError) throw deleteError;
 
-    if (error) {
-        alert(`Error saving time entries: ${error.message}`);
-    } else {
+        // 2. Insert the new/updated entries
+        const { error: insertError } = await _supabase
+            .from('timecard_entries')
+            .insert(timecardEntries);
+
+        if (insertError) throw insertError;
+
         alert('All time entries saved successfully!');
         window.location.href = `/project-details.html?id=${currentShift.projects.id}`;
+
+    } catch (error) {
+        console.error("Error saving times:", error);
+        alert(`Error saving time entries: ${error.message}`);
     }
 });
 
+// Start the page load
 loadTimeSheet();
