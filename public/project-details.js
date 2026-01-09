@@ -1,5 +1,6 @@
 import { _supabase } from './auth.js';
 
+// Global State
 const urlParams = new URLSearchParams(window.location.search);
 const projectId = urlParams.get('id');
 let currentProject = null;
@@ -7,16 +8,32 @@ let allEmployees = [];
 let availabilityMap = {}; 
 let allPositions = [];
 
-async function loadProjectDetails() {
-    if (!projectId) return window.location.href = '/projects.html';
-    const { data: project } = await _supabase.from('projects').select('*').eq('id', projectId).single();
-    if (!project) return document.body.innerHTML = '<h1>Project not found</h1>';
-    currentProject = project;
-    renderHeaderInfo();
-    loadShifts();
-    loadPositions();
+// --- Main Init Function ---
+async function initPage() {
+    try {
+        if (!projectId) {
+            alert("No project ID found in URL.");
+            window.location.href = '/projects.html';
+            return;
+        }
+        
+        // 1. Fetch Project Details
+        const { data: project, error: pError } = await _supabase.from('projects').select('*').eq('id', projectId).single();
+        if (pError || !project) throw new Error(pError?.message || "Project not found");
+        
+        currentProject = project;
+        renderHeaderInfo();
+        
+        // 2. Fetch Other Data
+        await Promise.all([loadShifts(), loadPositions()]);
+        
+    } catch (err) {
+        console.error("Critical Error loading page:", err);
+        document.body.innerHTML = `<div style="padding:20px; color:white;"><h1>Error loading project</h1><p>${err.message}</p><a href="/projects.html" style="color:#aaf">Back to Projects</a></div>`;
+    }
 }
 
+// --- Render Logic ---
 function renderHeaderInfo() {
     document.getElementById('project-name').textContent = currentProject.name;
     document.getElementById('p-client').textContent = currentProject.client_name || '-';
@@ -60,13 +77,23 @@ async function loadPositions() {
 async function loadShifts() {
     const container = document.getElementById('shifts-container');
     container.innerHTML = '<p>Loading shifts...</p>';
+    
     const { data: shifts, error } = await _supabase.from('shifts')
         .select(`*, assignments(id, status, employees(id, full_name, email, phone))`)
         .eq('project_id', projectId).order('start_time', { ascending: true });
 
-    if (error) { console.error(error); container.innerHTML = '<p>Error loading shifts.</p>'; return; }
+    if (error) {
+        console.error("Shift Load Error:", error);
+        container.innerHTML = `<p>Error loading shifts: ${error.message}</p>`;
+        return;
+    }
+    
     container.innerHTML = '';
-    if (!shifts || shifts.length === 0) return container.innerHTML = '<p>No shifts created yet.</p>';
+    if (!shifts || shifts.length === 0) {
+        container.innerHTML = '<p>No shifts created yet.</p>';
+        return;
+    }
+    
     shifts.forEach(shift => container.appendChild(createShiftCard(shift)));
 }
 
@@ -79,8 +106,6 @@ function createShiftCard(shift) {
 
     const div = document.createElement('div');
     div.className = `shift-card ${statusClass}`;
-    
-    // Store shift data in DOM for easy edit access
     div.dataset.shiftJson = JSON.stringify(shift);
 
     const dressCodeDisplay = shift.dress_code ? `<div style="font-size:0.85em; color:#aaa; margin-top:4px;"><strong>Dress:</strong> ${shift.dress_code}</div>` : '';
@@ -90,7 +115,7 @@ function createShiftCard(shift) {
             <div>
                 <h4>
                     ${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#aaa;">(${shift.role})</span>
-                    <button class="btn-edit-icon" onclick="openEditShiftModal(this)" title="Edit Shift">&#9998;</button>
+                    <button class="btn-edit-icon" onclick="openEditShiftModal(this)" title="Edit Shift">✎</button>
                 </h4>
                 ${dressCodeDisplay}
                 <div class="shift-time">${start.toLocaleDateString()} | ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
@@ -125,7 +150,9 @@ function createShiftCard(shift) {
     return div;
 }
 
-// --- SHIFT CREATION LOGIC ---
+// --- EVENT HANDLERS (Setup on DOM Ready) ---
+
+// 1. ADD SHIFT MODAL
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
 const rolesContainer = document.getElementById('shift-roles-container');
@@ -141,7 +168,9 @@ function addRoleRow() {
     div.querySelector('.remove-row-btn').onclick = () => div.remove();
     rolesContainer.appendChild(div);
 }
+
 document.getElementById('add-role-row-btn').onclick = addRoleRow;
+
 document.getElementById('add-shift-btn').onclick = () => {
     if (currentProject.start_date) {
         const iso = new Date(currentProject.start_date).toISOString().slice(0, 16);
@@ -174,27 +203,22 @@ addShiftForm.addEventListener('submit', async (e) => {
         }
         shiftsToInsert.push({ project_id: projectId, name: shiftName, start_time: startTime, end_time: endTime, dress_code: dressCode, role: roleName, quantity_needed: qty });
     }
+    
     await loadPositions();
     const { error } = await _supabase.from('shifts').insert(shiftsToInsert);
-    if (error) alert(error.message); else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
+    if (error) alert('Error creating shifts: ' + error.message);
+    else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
 });
 
-// --- EDIT SHIFT LOGIC (NEW) ---
+// 2. EDIT SHIFT MODAL
 const editModal = document.getElementById('edit-shift-modal');
 const editForm = document.getElementById('edit-shift-form');
+const toLocalIso = (d) => { const date = new Date(d); date.setMinutes(date.getMinutes() - date.getTimezoneOffset()); return date.toISOString().slice(0,16); };
 
-// Helper to convert ISO string to datetime-local input format
-const toLocalIso = (dateStr) => {
-    const date = new Date(dateStr);
-    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-    return date.toISOString().slice(0, 16);
-};
-
+// Expose to window for onclick
 window.openEditShiftModal = (btn) => {
-    // Find parent card and get JSON data
     const card = btn.closest('.shift-card');
     const shift = JSON.parse(card.dataset.shiftJson);
-    
     document.getElementById('edit-shift-id').value = shift.id;
     document.getElementById('edit-name').value = shift.name;
     document.getElementById('edit-role').value = shift.role;
@@ -202,10 +226,8 @@ window.openEditShiftModal = (btn) => {
     document.getElementById('edit-start').value = toLocalIso(shift.start_time);
     document.getElementById('edit-end').value = toLocalIso(shift.end_time);
     document.getElementById('edit-qty').value = shift.quantity_needed;
-
     editModal.style.display = 'flex';
 };
-
 document.getElementById('close-edit-modal').onclick = () => editModal.style.display = 'none';
 
 editForm.addEventListener('submit', async (e) => {
@@ -219,32 +241,29 @@ editForm.addEventListener('submit', async (e) => {
         end_time: document.getElementById('edit-end').value,
         quantity_needed: document.getElementById('edit-qty').value
     };
-
     const { error } = await _supabase.from('shifts').update(updates).eq('id', id);
-    if (error) alert('Error updating shift: ' + error.message);
-    else { editModal.style.display = 'none'; loadShifts(); }
+    if(error) alert(error.message); else { editModal.style.display = 'none'; loadShifts(); }
 });
 
 document.getElementById('delete-shift-btn').onclick = async () => {
+    if(!confirm("Delete shift?")) return;
     const id = document.getElementById('edit-shift-id').value;
-    if(!confirm("Are you sure you want to delete this shift? All assignments will be removed.")) return;
-    
     const { error } = await _supabase.from('shifts').delete().eq('id', id);
-    if (error) alert('Error deleting shift: ' + error.message);
-    else { editModal.style.display = 'none'; loadShifts(); }
+    if(error) alert(error.message); else { editModal.style.display = 'none'; loadShifts(); }
 };
 
-// --- ASSIGN LOGIC ---
+// 3. ASSIGN MODAL & AVAILABILITY
 const assignModal = document.getElementById('assign-modal');
 const empList = document.getElementById('employee-list');
+let targetShiftId = null;
 
 document.getElementById('request-avail-btn').onclick = async () => {
-    if(!confirm("Send availability request to ALL active employees for this project?")) return;
+    if(!confirm("Send availability request to ALL active employees?")) return;
     const { data: emps } = await _supabase.from('employees').select('id').eq('status', 'active');
     if(!emps) return;
     const inserts = emps.map(e => ({ project_id: projectId, employee_id: e.id, status: 'pending' }));
     const { error } = await _supabase.from('project_availability').upsert(inserts, { onConflict: 'project_id, employee_id' });
-    if(error) alert('Error sending requests: ' + error.message); else alert('Availability requests sent (simulated).');
+    if(error) alert(error.message); else alert('Requests sent.');
 };
 
 window.openAssignModal = async (sid) => {
@@ -286,7 +305,7 @@ function renderEmp() {
         if (!showAll && status !== 'available') return;
 
         const li = document.createElement('li');
-        let badgeClass = 'badge-none'; let badgeText = 'No Reply';
+        let badgeClass = 'badge-none', badgeText = 'No Reply';
         if(status === 'available') { badgeClass = 'badge-available'; badgeText = 'Available'; }
         else if(status === 'pending') { badgeClass = 'badge-pending'; badgeText = 'Pending'; }
         else if(status === 'unavailable') { badgeClass = 'badge-none'; badgeText = 'Unavailable'; }
@@ -299,9 +318,10 @@ function renderEmp() {
         };
         empList.appendChild(li);
     });
-    if(empList.children.length === 0) empList.innerHTML = '<li style="color:#777; cursor:default;">No crew found matching criteria.</li>';
+    if(empList.children.length === 0) empList.innerHTML = '<li style="color:#777; cursor:default;">No crew found.</li>';
 }
 
 window.removeAssignment = async (id) => { if(confirm('Remove crew?')) { await _supabase.from('assignments').delete().eq('id', id); loadShifts(); }};
 
-loadProjectDetails();
+// --- INITIALIZE ---
+initPage();
