@@ -24,16 +24,15 @@ function renderHeaderInfo() {
     document.getElementById('p-status').textContent = (currentProject.status || 'Active').toUpperCase();
     document.getElementById('p-union').textContent = currentProject.is_union_project ? 'Yes' : 'No';
     
-    // --- NEW FIELDS RENDERED HERE ---
+    // Remvoed Dress Code from here. Kept Contact and Parking.
     document.getElementById('p-contact').textContent = currentProject.on_site_contact || '-';
-    document.getElementById('p-dress').textContent = currentProject.dress_code || '-';
     document.getElementById('p-parking').textContent = currentProject.parking_instructions || '-';
 
     const start = currentProject.start_date ? new Date(currentProject.start_date).toLocaleDateString() : 'TBD';
     const end = currentProject.end_date ? new Date(currentProject.end_date).toLocaleDateString() : '';
     document.getElementById('p-dates').textContent = end ? `${start} - ${end}` : start;
 
-    // --- Render Map ---
+    // Map Render
     const mapContainer = document.getElementById('google-map-embed');
     const addressText = document.getElementById('map-address-text');
     
@@ -95,10 +94,16 @@ function createShiftCard(shift) {
     const div = document.createElement('div');
     div.className = `shift-card ${statusClass}`;
     
+    // Added Dress Code display below the role
+    const dressCodeDisplay = shift.dress_code ? `<div style="font-size:0.85em; color:#555; margin-top:4px;"><strong>Dress:</strong> ${shift.dress_code}</div>` : '';
+
     let html = `
         <div class="shift-header">
-            <div><h4>${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#666;">(${shift.role})</span></h4>
-            <div class="shift-time">${start.toLocaleDateString()} | ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>
+            <div>
+                <h4>${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#666;">(${shift.role})</span></h4>
+                ${dressCodeDisplay}
+                <div class="shift-time">${start.toLocaleDateString()} | ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+            </div>
             <div class="shift-meta">${filled} / ${total} Filled</div>
         </div>`;
 
@@ -149,9 +154,13 @@ addShiftForm.addEventListener('submit', async (e) => {
     if (!existing) { await _supabase.from('positions').insert([{ name: roleInput.trim() }]); await loadPositions(); }
 
     const { error } = await _supabase.from('shifts').insert([{
-        project_id: projectId, name: document.getElementById('shift-name').value,
-        role: roleInput.trim(), start_time: document.getElementById('shift-start').value,
-        end_time: document.getElementById('shift-end').value, quantity_needed: document.getElementById('shift-qty').value
+        project_id: projectId, 
+        name: document.getElementById('shift-name').value,
+        role: roleInput.trim(), 
+        dress_code: document.getElementById('shift-dress').value, // SAVING DRESS CODE HERE
+        start_time: document.getElementById('shift-start').value,
+        end_time: document.getElementById('shift-end').value, 
+        quantity_needed: document.getElementById('shift-qty').value
     }]);
     if (error) alert(error.message); else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
 });
