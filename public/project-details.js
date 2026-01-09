@@ -5,7 +5,7 @@ const projectId = urlParams.get('id');
 
 let currentProject = null;
 let allEmployees = [];
-let allPositions = []; // To store fetched roles
+let allPositions = [];
 
 // --- 1. Load Everything ---
 async function loadProjectDetails() {
@@ -15,7 +15,7 @@ async function loadProjectDetails() {
         return;
     }
 
-    // A. Fetch Project Metadata
+    // A. Fetch Project
     const { data: project, error } = await _supabase
         .from('projects')
         .select('*')
@@ -34,11 +34,10 @@ async function loadProjectDetails() {
     // B. Fetch Shifts
     loadShifts();
 
-    // C. Fetch Positions (Roles) for the Dropdown
+    // C. Fetch Positions
     loadPositions();
 }
 
-// --- 2. Render Project Header ---
 function renderHeaderInfo() {
     document.getElementById('project-name').textContent = currentProject.name;
     document.getElementById('p-client').textContent = currentProject.client_name || '-';
@@ -47,19 +46,17 @@ function renderHeaderInfo() {
     document.getElementById('p-status').textContent = (currentProject.status || 'Active').toUpperCase();
     document.getElementById('p-union').textContent = currentProject.is_union_project ? 'Yes' : 'No';
     
-    // Date formatting
     const start = currentProject.start_date ? new Date(currentProject.start_date).toLocaleDateString() : 'TBD';
     const end = currentProject.end_date ? new Date(currentProject.end_date).toLocaleDateString() : '';
     document.getElementById('p-dates').textContent = end ? `${start} - ${end}` : start;
 }
 
-// --- 3. Fetch Positions for Dropdown ---
 async function loadPositions() {
     const { data, error } = await _supabase.from('positions').select('*').order('name');
     if (!error && data) {
         allPositions = data;
         const datalist = document.getElementById('roles-list');
-        datalist.innerHTML = ''; // Clear existing
+        datalist.innerHTML = '';
         data.forEach(pos => {
             const option = document.createElement('option');
             option.value = pos.name;
@@ -68,11 +65,11 @@ async function loadPositions() {
     }
 }
 
-// --- 4. Load Shifts & Assignments ---
 async function loadShifts() {
     const container = document.getElementById('shifts-container');
     container.innerHTML = '<p>Loading shifts...</p>';
 
+    // This is the query causing the 400 error if relations don't exist
     const { data: shifts, error } = await _supabase
         .from('shifts')
         .select(`
@@ -87,12 +84,13 @@ async function loadShifts() {
         .order('start_time', { ascending: true });
 
     if (error) {
-        container.innerHTML = '<p>Error loading shifts.</p>';
+        console.error("Supabase Error:", error);
+        container.innerHTML = `<p>Error loading shifts: ${error.message}</p>`;
         return;
     }
 
     container.innerHTML = '';
-    if (shifts.length === 0) {
+    if (!shifts || shifts.length === 0) {
         container.innerHTML = '<p>No shifts created yet.</p>';
         return;
     }
@@ -102,14 +100,13 @@ async function loadShifts() {
     });
 }
 
-// --- 5. Render a Shift Card ---
 function createShiftCard(shift) {
     const start = new Date(shift.start_time);
     const end = new Date(shift.end_time);
     const dateStr = start.toLocaleDateString();
     const timeStr = `${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
 
-    const filled = shift.assignments.length;
+    const filled = shift.assignments ? shift.assignments.length : 0;
     const total = shift.quantity_needed;
     const statusClass = filled >= total ? 'status-green' : (filled > 0 ? 'status-yellow' : '');
 
@@ -126,12 +123,12 @@ function createShiftCard(shift) {
             </div>
         </div>
         <div class="assignments-list">
-            ${shift.assignments.map(a => `
+            ${shift.assignments ? shift.assignments.map(a => `
                 <div class="assignment-chip">
-                    <span>${a.employees.full_name}</span>
+                    <span>${a.employees ? a.employees.full_name : 'Unknown'}</span>
                     <button class="remove-assignment-btn" onclick="removeAssignment('${a.id}')">&times;</button>
                 </div>
-            `).join('')}
+            `).join('') : ''}
             ${filled < total ? `<button class="add-assign-btn" onclick="openAssignModal('${shift.id}')">+ Assign</button>` : ''}
         </div>
         <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;">
@@ -141,14 +138,12 @@ function createShiftCard(shift) {
     return div;
 }
 
-// --- 6. Add Shift Modal Logic (With New Role Check) ---
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftBtn = document.getElementById('add-shift-btn');
 const closeShiftBtn = document.getElementById('close-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
 
 addShiftBtn.onclick = () => {
-    // Pre-fill Start/End times from Project Dates
     if (currentProject.start_date) {
         const isoStart = new Date(currentProject.start_date).toISOString().slice(0, 16);
         document.getElementById('shift-start').value = isoStart;
@@ -160,30 +155,20 @@ closeShiftBtn.onclick = () => addShiftModal.style.display = 'none';
 
 addShiftForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const name = document.getElementById('shift-name').value;
     const roleInput = document.getElementById('shift-role').value;
     const start = document.getElementById('shift-start').value;
     const end = document.getElementById('shift-end').value;
     const qty = document.getElementById('shift-qty').value;
 
-    // >>>> NEW LOGIC: Check if Role Exists <<<<
     const existingRole = allPositions.find(p => p.name.toLowerCase() === roleInput.trim().toLowerCase());
-    
     if (!existingRole) {
-        const confirmCreate = confirm(`The role "${roleInput}" does not exist in Settings.\n\nClick OK to create it.\nClick Cancel to fix spelling.`);
-        if (!confirmCreate) return; 
-
-        // Create new role
-        const { error: roleError } = await _supabase.from('positions').insert([{ name: roleInput.trim() }]);
-        if (roleError) {
-            alert("Error creating role: " + roleError.message);
-            return;
-        }
-        await loadPositions(); // Refresh list
+        const confirmCreate = confirm(`Role "${roleInput}" does not exist. Create it?`);
+        if (!confirmCreate) return;
+        await _supabase.from('positions').insert([{ name: roleInput.trim() }]);
+        await loadPositions();
     }
 
-    // Save Shift
     const { error } = await _supabase.from('shifts').insert([{
         project_id: projectId,
         name: name,
@@ -193,29 +178,24 @@ addShiftForm.addEventListener('submit', async (e) => {
         quantity_needed: qty
     }]);
 
-    if (error) {
-        alert('Error creating shift: ' + error.message);
-    } else {
+    if (error) alert('Error creating shift: ' + error.message);
+    else {
         addShiftModal.style.display = 'none';
         addShiftForm.reset();
         loadShifts();
     }
 });
 
-// --- 7. Assign Employee Modal Logic ---
 const assignModal = document.getElementById('assign-modal');
 const closeAssignBtn = document.getElementById('close-assign-modal');
 const employeeSearch = document.getElementById('employee-search');
 const employeeList = document.getElementById('employee-list');
 let targetShiftId = null;
 
-// Expose these to window so HTML 'onclick' attributes can see them
 window.openAssignModal = async (shiftId) => {
     targetShiftId = shiftId;
     assignModal.style.display = 'flex';
     employeeSearch.value = '';
-    
-    // Lazy load employees
     if (allEmployees.length === 0) {
         const { data } = await _supabase.from('employees').select('id, full_name').eq('status', 'active');
         allEmployees = data || [];
@@ -255,7 +235,7 @@ async function assignEmployee(employeeId) {
     }]);
 
     if (error) {
-        if (error.code === '23505') alert('Employee is already assigned to this shift.');
+        if (error.code === '23505') alert('Employee already assigned.');
         else alert('Error: ' + error.message);
     } else {
         assignModal.style.display = 'none';
@@ -263,5 +243,4 @@ async function assignEmployee(employeeId) {
     }
 }
 
-// Start the page
 loadProjectDetails();
