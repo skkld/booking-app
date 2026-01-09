@@ -24,7 +24,6 @@ function renderHeaderInfo() {
     document.getElementById('p-status').textContent = (currentProject.status || 'Active').toUpperCase();
     document.getElementById('p-union').textContent = currentProject.is_union_project ? 'Yes' : 'No';
     
-    // Remvoed Dress Code from here. Kept Contact and Parking.
     document.getElementById('p-contact').textContent = currentProject.on_site_contact || '-';
     document.getElementById('p-parking').textContent = currentProject.parking_instructions || '-';
 
@@ -94,7 +93,6 @@ function createShiftCard(shift) {
     const div = document.createElement('div');
     div.className = `shift-card ${statusClass}`;
     
-    // Added Dress Code display below the role
     const dressCodeDisplay = shift.dress_code ? `<div style="font-size:0.85em; color:#555; margin-top:4px;"><strong>Dress:</strong> ${shift.dress_code}</div>` : '';
 
     let html = `
@@ -134,37 +132,102 @@ function createShiftCard(shift) {
     return div;
 }
 
+// --- DYNAMIC SHIFT MODAL LOGIC ---
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
+const rolesContainer = document.getElementById('shift-roles-container');
+
+// Function to add a new role row
+function addRoleRow() {
+    const div = document.createElement('div');
+    div.className = 'shift-role-row';
+    div.innerHTML = `
+        <div>
+            <label>Role</label>
+            <input type="text" class="form-control role-input" list="roles-list" placeholder="e.g. Audio A1" required>
+        </div>
+        <div>
+            <label>Dress Code</label>
+            <input type="text" class="form-control dress-input" placeholder="e.g. Show Blacks">
+        </div>
+        <div>
+            <label>Qty</label>
+            <input type="number" class="form-control qty-input" value="1" min="1" required>
+        </div>
+        <button type="button" class="remove-row-btn" title="Remove Row">×</button>
+    `;
+    
+    // Remove handler
+    div.querySelector('.remove-row-btn').onclick = () => div.remove();
+    rolesContainer.appendChild(div);
+}
+
+document.getElementById('add-role-row-btn').onclick = addRoleRow;
+
 document.getElementById('add-shift-btn').onclick = () => {
+    // Pre-fill Start/End dates
     if (currentProject.start_date) {
         const iso = new Date(currentProject.start_date).toISOString().slice(0, 16);
         document.getElementById('shift-start').value = iso;
         document.getElementById('shift-end').value = iso;
     }
+    // Clear and add one default row
+    rolesContainer.innerHTML = '';
+    addRoleRow();
     addShiftModal.style.display = 'flex';
 };
 document.getElementById('close-shift-modal').onclick = () => addShiftModal.style.display = 'none';
 
 addShiftForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const roleInput = document.getElementById('shift-role').value;
-    const existing = allPositions.find(p => p.name.toLowerCase() === roleInput.trim().toLowerCase());
-    if (!existing && !confirm(`Role "${roleInput}" is new. Create it?`)) return;
-    if (!existing) { await _supabase.from('positions').insert([{ name: roleInput.trim() }]); await loadPositions(); }
+    
+    const startTime = document.getElementById('shift-start').value;
+    const endTime = document.getElementById('shift-end').value;
+    
+    // Collect all rows
+    const rows = document.querySelectorAll('.shift-role-row');
+    const shiftsToInsert = [];
 
-    const { error } = await _supabase.from('shifts').insert([{
-        project_id: projectId, 
-        name: document.getElementById('shift-name').value,
-        role: roleInput.trim(), 
-        dress_code: document.getElementById('shift-dress').value, // SAVING DRESS CODE HERE
-        start_time: document.getElementById('shift-start').value,
-        end_time: document.getElementById('shift-end').value, 
-        quantity_needed: document.getElementById('shift-qty').value
-    }]);
-    if (error) alert(error.message); else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
+    // Helper to check/create roles
+    for (const row of rows) {
+        const roleName = row.querySelector('.role-input').value.trim();
+        const dressCode = row.querySelector('.dress-input').value.trim();
+        const qty = row.querySelector('.qty-input').value;
+
+        // Check if role exists
+        const existing = allPositions.find(p => p.name.toLowerCase() === roleName.toLowerCase());
+        if (!existing) {
+            const confirmCreate = confirm(`Role "${roleName}" is new. Create it globally?`);
+            if (!confirmCreate) return; // Stop submission
+            await _supabase.from('positions').insert([{ name: roleName }]);
+        }
+        
+        shiftsToInsert.push({
+            project_id: projectId,
+            name: 'Shift', // Generic name, or you could add a Name input back if you want distinct names per row
+            role: roleName,
+            dress_code: dressCode,
+            start_time: startTime,
+            end_time: endTime,
+            quantity_needed: qty
+        });
+    }
+
+    // Refresh positions in case we added new ones
+    await loadPositions();
+
+    const { error } = await _supabase.from('shifts').insert(shiftsToInsert);
+    
+    if (error) {
+        alert('Error creating shifts: ' + error.message);
+    } else {
+        addShiftModal.style.display = 'none';
+        addShiftForm.reset();
+        loadShifts();
+    }
 });
 
+// --- ASSIGN LOGIC ---
 const assignModal = document.getElementById('assign-modal');
 const empList = document.getElementById('employee-list');
 let targetShiftId = null;
