@@ -115,7 +115,7 @@ function createShiftCard(shift) {
             <div>
                 <h4>
                     ${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#aaa;">(${shift.role})</span>
-                    <button class="btn-edit-icon" onclick="openEditShiftModal(this)" title="Edit Shift">✎</button>
+                    <button class="btn-primary" style="margin-left:10px; padding: 2px 8px; font-size:0.8rem;" onclick="openEditShiftModal(this)">Edit Shift</button>
                 </h4>
                 ${dressCodeDisplay}
                 <div class="shift-time">${start.toLocaleDateString()} | ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
@@ -150,21 +150,25 @@ function createShiftCard(shift) {
     return div;
 }
 
-// --- EVENT HANDLERS (Setup on DOM Ready) ---
+// --- EVENT HANDLERS ---
 
 // 1. ADD SHIFT MODAL
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
 const rolesContainer = document.getElementById('shift-roles-container');
 
-function addRoleRow() {
-    const div = document.createElement('div');
-    div.className = 'shift-role-row';
-    div.innerHTML = `
+function createRoleRowHTML() {
+    return `
         <div><label>Role</label><input type="text" class="form-control role-input" list="roles-list" placeholder="e.g. Audio A1" required></div>
         <div><label>Qty</label><input type="number" class="form-control qty-input" value="1" min="1" required></div>
         <button type="button" class="remove-row-btn" title="Remove Row">×</button>
     `;
+}
+
+function addRoleRow() {
+    const div = document.createElement('div');
+    div.className = 'shift-role-row';
+    div.innerHTML = createRoleRowHTML();
     div.querySelector('.remove-row-btn').onclick = () => div.remove();
     rolesContainer.appendChild(div);
 }
@@ -190,17 +194,17 @@ addShiftForm.addEventListener('submit', async (e) => {
     const endTime = document.getElementById('shift-end').value;
     const dressCode = document.getElementById('shift-dress').value;
     
-    const rows = document.querySelectorAll('.shift-role-row');
+    const rows = document.querySelectorAll('#shift-roles-container .shift-role-row');
     const shiftsToInsert = [];
 
     for (const row of rows) {
         const roleName = row.querySelector('.role-input').value.trim();
         const qty = row.querySelector('.qty-input').value;
+        
+        // Auto-add new role to positions
         const existing = allPositions.find(p => p.name.toLowerCase() === roleName.toLowerCase());
-        if (!existing) {
-            if (!confirm(`Role "${roleName}" is new. Create it globally?`)) return;
-            await _supabase.from('positions').insert([{ name: roleName }]);
-        }
+        if (!existing) await _supabase.from('positions').insert([{ name: roleName }]);
+        
         shiftsToInsert.push({ project_id: projectId, name: shiftName, start_time: startTime, end_time: endTime, dress_code: dressCode, role: roleName, quantity_needed: qty });
     }
     
@@ -213,12 +217,22 @@ addShiftForm.addEventListener('submit', async (e) => {
 // 2. EDIT SHIFT MODAL
 const editModal = document.getElementById('edit-shift-modal');
 const editForm = document.getElementById('edit-shift-form');
+const editRolesContainer = document.getElementById('edit-new-roles-container');
 const toLocalIso = (d) => { const date = new Date(d); date.setMinutes(date.getMinutes() - date.getTimezoneOffset()); return date.toISOString().slice(0,16); };
 
-// Expose to window for onclick
+// Add New Role Row INSIDE Edit Modal
+document.getElementById('edit-add-role-btn').onclick = () => {
+    const div = document.createElement('div');
+    div.className = 'shift-role-row';
+    div.innerHTML = createRoleRowHTML();
+    div.querySelector('.remove-row-btn').onclick = () => div.remove();
+    editRolesContainer.appendChild(div);
+};
+
 window.openEditShiftModal = (btn) => {
     const card = btn.closest('.shift-card');
     const shift = JSON.parse(card.dataset.shiftJson);
+    
     document.getElementById('edit-shift-id').value = shift.id;
     document.getElementById('edit-name').value = shift.name;
     document.getElementById('edit-role').value = shift.role;
@@ -226,6 +240,10 @@ window.openEditShiftModal = (btn) => {
     document.getElementById('edit-start').value = toLocalIso(shift.start_time);
     document.getElementById('edit-end').value = toLocalIso(shift.end_time);
     document.getElementById('edit-qty').value = shift.quantity_needed;
+    
+    // Clear the "Add new roles" section
+    editRolesContainer.innerHTML = '';
+
     editModal.style.display = 'flex';
 };
 document.getElementById('close-edit-modal').onclick = () => editModal.style.display = 'none';
@@ -233,20 +251,55 @@ document.getElementById('close-edit-modal').onclick = () => editModal.style.disp
 editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-shift-id').value;
+    const shiftName = document.getElementById('edit-name').value;
+    const startTime = document.getElementById('edit-start').value;
+    const endTime = document.getElementById('edit-end').value;
+    const dressCode = document.getElementById('edit-dress').value;
+
+    // 1. Update the MAIN shift
     const updates = {
-        name: document.getElementById('edit-name').value,
+        name: shiftName,
         role: document.getElementById('edit-role').value,
-        dress_code: document.getElementById('edit-dress').value,
-        start_time: document.getElementById('edit-start').value,
-        end_time: document.getElementById('edit-end').value,
+        dress_code: dressCode,
+        start_time: startTime,
+        end_time: endTime,
         quantity_needed: document.getElementById('edit-qty').value
     };
+    
     const { error } = await _supabase.from('shifts').update(updates).eq('id', id);
-    if(error) alert(error.message); else { editModal.style.display = 'none'; loadShifts(); }
+    if(error) { alert(error.message); return; }
+
+    // 2. Check for NEW roles added during edit
+    const newRows = document.querySelectorAll('#edit-new-roles-container .shift-role-row');
+    if (newRows.length > 0) {
+        const newShifts = [];
+        for (const row of newRows) {
+            const rName = row.querySelector('.role-input').value.trim();
+            const rQty = row.querySelector('.qty-input').value;
+            
+            const existing = allPositions.find(p => p.name.toLowerCase() === rName.toLowerCase());
+            if (!existing) await _supabase.from('positions').insert([{ name: rName }]);
+
+            newShifts.push({ 
+                project_id: projectId, 
+                name: shiftName, // Inherit name
+                start_time: startTime, // Inherit time
+                end_time: endTime, // Inherit time
+                dress_code: dressCode, // Inherit dress
+                role: rName, 
+                quantity_needed: rQty 
+            });
+        }
+        await _supabase.from('shifts').insert(newShifts);
+        await loadPositions();
+    }
+
+    editModal.style.display = 'none'; 
+    loadShifts();
 });
 
 document.getElementById('delete-shift-btn').onclick = async () => {
-    if(!confirm("Delete shift?")) return;
+    if(!confirm("Delete this shift completely? All assignments will be removed.")) return;
     const id = document.getElementById('edit-shift-id').value;
     const { error } = await _supabase.from('shifts').delete().eq('id', id);
     if(error) alert(error.message); else { editModal.style.display = 'none'; loadShifts(); }
