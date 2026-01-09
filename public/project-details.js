@@ -30,11 +30,7 @@ async function loadProjectDetails() {
 
     currentProject = project;
     renderHeaderInfo();
-
-    // B. Fetch Shifts
     loadShifts();
-
-    // C. Fetch Positions
     loadPositions();
 }
 
@@ -52,8 +48,8 @@ function renderHeaderInfo() {
 }
 
 async function loadPositions() {
-    const { data, error } = await _supabase.from('positions').select('*').order('name');
-    if (!error && data) {
+    const { data } = await _supabase.from('positions').select('*').order('name');
+    if (data) {
         allPositions = data;
         const datalist = document.getElementById('roles-list');
         datalist.innerHTML = '';
@@ -65,11 +61,12 @@ async function loadPositions() {
     }
 }
 
+// --- 4. Load Shifts & Assignments (With Contact Info) ---
 async function loadShifts() {
     const container = document.getElementById('shifts-container');
     container.innerHTML = '<p>Loading shifts...</p>';
 
-    // This is the query causing the 400 error if relations don't exist
+    // Fetch shifts + assignments + employee details (phone/email)
     const { data: shifts, error } = await _supabase
         .from('shifts')
         .select(`
@@ -77,7 +74,12 @@ async function loadShifts() {
             assignments (
                 id,
                 status,
-                employees (id, full_name)
+                employees (
+                    id, 
+                    full_name,
+                    email,
+                    phone
+                )
             )
         `)
         .eq('project_id', projectId)
@@ -112,7 +114,9 @@ function createShiftCard(shift) {
 
     const div = document.createElement('div');
     div.className = `shift-card ${statusClass}`;
-    div.innerHTML = `
+    
+    // Header Section
+    let html = `
         <div class="shift-header">
             <div>
                 <h4>${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#666;">(${shift.role})</span></h4>
@@ -122,22 +126,57 @@ function createShiftCard(shift) {
                 ${filled} / ${total} Filled
             </div>
         </div>
-        <div class="assignments-list">
-            ${shift.assignments ? shift.assignments.map(a => `
-                <div class="assignment-chip">
-                    <span>${a.employees ? a.employees.full_name : 'Unknown'}</span>
-                    <button class="remove-assignment-btn" onclick="removeAssignment('${a.id}')">&times;</button>
+    `;
+
+    // Crew List Section (Table Header)
+    if (shift.assignments && shift.assignments.length > 0) {
+        html += `
+            <div class="crew-list-header">
+                <div>Crew Member</div>
+                <div>Contact</div>
+                <div style="text-align:right">Action</div>
+            </div>
+        `;
+    }
+
+    // Crew List Items
+    html += `<div class="assignments-list">`;
+    if (shift.assignments) {
+        shift.assignments.forEach(a => {
+            const emp = a.employees || {};
+            const contactInfo = [emp.email, emp.phone].filter(Boolean).join('<br>');
+            
+            html += `
+                <div class="crew-list-item">
+                    <div style="font-weight:500;">${emp.full_name || 'Unknown'}</div>
+                    <div class="crew-contact">${contactInfo || '-'}</div>
+                    <div style="text-align:right;">
+                        <button class="btn-icon" title="Remove" onclick="removeAssignment('${a.id}')">&times;</button>
+                    </div>
                 </div>
-            `).join('') : ''}
-            ${filled < total ? `<button class="add-assign-btn" onclick="openAssignModal('${shift.id}')">+ Assign</button>` : ''}
-        </div>
-        <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;">
+            `;
+        });
+    }
+
+    // "Assign" Button (Infill)
+    if (filled < total) {
+        html += `<button class="btn btn-sm add-assign-btn" onclick="openAssignModal('${shift.id}')">+ Assign Crew to Open Slot</button>`;
+    }
+
+    html += `</div>`; // Close assignments-list
+
+    // Footer Links
+    html += `
+        <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px; text-align:right;">
             <a href="/timesheet-entry.html?shift_id=${shift.id}" class="btn btn-sm btn-secondary">Enter Times</a>
         </div>
     `;
+
+    div.innerHTML = html;
     return div;
 }
 
+// --- Modals Logic ---
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftBtn = document.getElementById('add-shift-btn');
 const closeShiftBtn = document.getElementById('close-shift-modal');
@@ -192,12 +231,18 @@ const employeeSearch = document.getElementById('employee-search');
 const employeeList = document.getElementById('employee-list');
 let targetShiftId = null;
 
+// Global Window Functions for HTML Access
 window.openAssignModal = async (shiftId) => {
     targetShiftId = shiftId;
     assignModal.style.display = 'flex';
     employeeSearch.value = '';
+    
+    // Fetch employees with contact info if not already loaded
     if (allEmployees.length === 0) {
-        const { data } = await _supabase.from('employees').select('id, full_name').eq('status', 'active');
+        const { data } = await _supabase
+            .from('employees')
+            .select('id, full_name, email, phone')
+            .eq('status', 'active');
         allEmployees = data || [];
     }
     renderEmployeeList(allEmployees);
@@ -213,7 +258,10 @@ closeAssignBtn.onclick = () => assignModal.style.display = 'none';
 
 employeeSearch.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
-    const filtered = allEmployees.filter(emp => emp.full_name.toLowerCase().includes(term));
+    const filtered = allEmployees.filter(emp => 
+        emp.full_name.toLowerCase().includes(term) || 
+        (emp.email && emp.email.toLowerCase().includes(term))
+    );
     renderEmployeeList(filtered);
 });
 
@@ -221,7 +269,10 @@ function renderEmployeeList(employees) {
     employeeList.innerHTML = '';
     employees.forEach(emp => {
         const li = document.createElement('li');
-        li.textContent = emp.full_name;
+        li.innerHTML = `
+            <strong>${emp.full_name}</strong>
+            <br><span style="font-size:0.8em; color:#666;">${emp.email || ''}</span>
+        `;
         li.onclick = () => assignEmployee(emp.id);
         employeeList.appendChild(li);
     });
