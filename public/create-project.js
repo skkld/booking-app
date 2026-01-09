@@ -5,12 +5,15 @@ const createProjectForm = document.getElementById('create-project-form');
 createProjectForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // Capture values from the form
     const newProject = {
         name: document.getElementById('name').value,
         client_name: document.getElementById('client_name').value,
+        
+        // These now contain both Date and Time (e.g., "2024-06-01T09:00")
         start_date: document.getElementById('start_date').value,
         end_date: document.getElementById('end_date').value || null,
-        start_time: document.getElementById('start_time').value || null,
+        
         venue_address: document.getElementById('venue_address').value,
         on_site_contact: document.getElementById('on_site_contact').value,
         dress_code: document.getElementById('dress_code').value,
