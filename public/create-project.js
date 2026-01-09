@@ -5,32 +5,21 @@ const createProjectForm = document.getElementById('create-project-form');
 createProjectForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // 1. Get values from the full form
-    const name = document.getElementById('project-name').value;
-    const clientName = document.getElementById('client-name').value;
-    const location = document.getElementById('project-location').value;
-    const status = document.getElementById('project-status').value;
-    const startDate = document.getElementById('start-date').value;
-    const endDate = document.getElementById('end-date').value;
-    const startTime = document.getElementById('start-time').value;
-    const dressCode = document.getElementById('dress-code').value;
-    const isUnion = document.getElementById('is-union-project').checked;
-
-    // 2. Prepare the object for the database.
-    // IMPORTANT: These keys (left side) must match your Supabase columns EXACTLY.
+    // Mapping HTML IDs to the Database Columns
     const newProject = {
-        name: name,
-        client_name: clientName, // Replaced 'client' with 'client_name' to fix your previous error
-        location: location,
-        status: status,
-        start_date: startDate,
-        end_date: endDate || null,
-        start_time: startTime || null,
-        dress_code: dressCode,
-        is_union_project: isUnion
+        name: document.getElementById('name').value,
+        client_name: document.getElementById('client_name').value,
+        start_date: document.getElementById('start_date').value,
+        end_date: document.getElementById('end_date').value,
+        venue_address: document.getElementById('venue_address').value,
+        on_site_contact: document.getElementById('on_site_contact').value,
+        dress_code: document.getElementById('dress_code').value,
+        parking_instructions: document.getElementById('parking_instructions').value,
+        is_union_project: document.getElementById('is_union_project').checked,
+        project_notes: document.getElementById('project_notes').value,
+        status: 'active' // Default status
     };
 
-    // 3. Insert into Supabase
     const { data, error } = await _supabase
         .from('projects')
         .insert([newProject])
@@ -38,7 +27,7 @@ createProjectForm.addEventListener('submit', async (e) => {
 
     if (error) {
         console.error('Error creating project:', error);
-        // This will tell us if 'client_name' or another column name is wrong
+        // If you see "Could not find column", check your Supabase table names
         alert('Error creating project: ' + error.message);
     } else {
         alert('Project created successfully!');
