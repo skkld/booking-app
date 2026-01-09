@@ -19,6 +19,7 @@
             <li class="nav-item"><a href="/projects.html" class="nav-link active">Projects</a></li>
             <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
             <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
+            <li class="nav-item"><a href="/timesheets.html" class="nav-link">Timesheets</a></li>
             <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
             <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
             <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
@@ -26,95 +27,112 @@
     </nav>
 
     <main class="main-content">
-        <header class="project-header">
-            <div class="project-title">
-                <h1 id="project-name">Loading Project...</h1>
-                <span id="project-date-range"></span>
-            </div>
+        <header class="header">
+            <h1 id="project-name">Loading...</h1>
             <div class="header-actions">
-                <a href="#" class="btn btn-secondary">Edit Project</a>
-                <a href="#" id="check-availability-btn" class="btn btn-primary">Check Availability</a>
+                <button class="btn btn-secondary" onclick="window.location.href='/projects.html'">Back to Projects</button>
+                <button id="add-shift-btn" class="btn btn-primary">+ Add Shift</button>
             </div>
         </header>
 
-        <div class="card">
+        <section class="project-info-card card">
+            <div class="card-header">
+                <h3>Project Information</h3>
+                <button id="edit-project-btn" class="btn btn-sm btn-secondary" style="visibility: hidden;">Edit</button>
+            </div>
             <div class="card-body">
-                <div class="project-info-grid">
-                    <div class="info-item"><div class="info-item-content"><strong>Client</strong><span id="client-name"></span></div></div>
-                    <div class="info-item"><div class="info-item-content"><strong>Venue</strong><span id="venue-address"></span></div></div>
-                    <div class="info-item"><div class="info-item-content"><strong>On-site Contact</strong><span id="on-site-contact"></span></div></div>
-                    <div class="info-item"><div class="info-item-content"><strong>Dress Code</strong><span id="dress-code"></span></div></div>
-                    <div class="info-item"><div class="info-item-content"><strong>Parking</strong><span id="parking-instructions"></span></div></div>
-                    <div class="info-item"><div class="info-item-content"><strong>Notes</strong><span id="project-notes"></span></div></div>
-                    <div id="map" class="map-container"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><h3>Shifts</h3></div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead><tr><th>Shift Name</th><th>Role</th><th>Date & Time</th><th>Assigned Crew</th><th>Actions</th></tr></thead>
-                    <tbody id="shifts-list-container"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><h3>Add New Shift(s) to Project</h3></div>
-            <form id="add-shift-form" class="card-body">
-                <div class="form-grid form-grid-2-col">
-                    <div class="form-group"><label for="shift_name">Shift Name (e.g., "Load In")</label><input type="text" id="shift_name" name="shift_name" required></div>
-                    <div class="form-group"><label for="shift_location">Location</label><input type="text" id="shift_location" name="shift_location" placeholder="Defaults to project venue"></div>
-                    <div class="form-group"><label for="start_time">Start Time</label><input type="datetime-local" id="start_time" name="start_time" required></div>
-                    <div class="form-group"><label for="end_time">End Time</label><input type="datetime-local" id="end_time" name="end_time" required></div>
-                </div>
-                <hr style="margin: 1.5rem 0;">
-                <h4>Roles for this Shift</h4>
-                <div id="roles-container"></div>
-                <button type="button" id="add-role-btn" class="btn btn-secondary" style="margin-top: 1rem;">+ Add Role</button>
-                <div class="form-actions" style="text-align: right; margin-top: 1.5rem;"><button type="submit" class="btn btn-primary">Save Shift(s)</button></div>
-            </form>
-        </div>
-
-        <div id="assignment-modal" class="modal-overlay" style="display: none;">
-            <div class="modal-content">
-                <div class="modal-header"><h3 id="modal-title">Assign Crew</h3><button id="modal-close-btn" class="modal-close">&times;</button></div>
-                <div class="modal-body">
-                    <div class="assignment-columns-3">
-                        <div class="assignment-column"><h4>Available</h4><ul id="available-employees-list" class="crew-list"></ul></div>
-                        <div class="assignment-column"><h4>Assigned</h4><ul id="assigned-employees-list" class="crew-list"></ul></div>
-                        <div class="assignment-column">
-                            <h4>Unavailable / Pending</h4>
-                            <ul id="unavailable-employees-list" class="crew-list"></ul>
-                            <div class="add-crew-footer"><a href="/employees.html" id="add-crew-link" class="btn btn-primary">+ Add New Crew</a></div>
-                        </div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Client:</label>
+                        <span id="p-client">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Location:</label>
+                        <span id="p-location">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Dates:</label>
+                        <span id="p-dates">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Status:</label>
+                        <span id="p-status">-</span>
+                    </div>
+                     <div class="info-item">
+                        <label>Union:</label>
+                        <span id="p-union">-</span>
                     </div>
                 </div>
+                <div class="info-item" style="margin-top: 1rem;">
+                    <label>Notes:</label>
+                    <p id="p-notes" style="color: var(--text-muted); font-style: italic;">-</p>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <div id="edit-shift-modal" class="modal-overlay" style="display: none;">
+        <section class="shifts-section">
+            <h2>Shifts</h2>
+            <div id="shifts-container" class="shifts-grid">
+                </div>
+        </section>
+
+        <div id="add-shift-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content">
-                <div class="modal-header"><h3 id="edit-modal-title">Edit Shift</h3><button type="button" id="edit-modal-close" class="modal-close">&times;</button></div>
-                <form id="edit-shift-form" class="modal-body">
-                    <input type="hidden" id="edit-shift-id">
-                    <div class="form-grid form-grid-2-col">
-                        <div class="form-group"><label for="edit_shift_name">Shift Name</label><input type="text" id="edit_shift_name" required></div>
-                        <div class="form-group"><label for="edit_location_address">Location</label><input type="text" id="edit_location_address" name="location_address"></div>
-                        <div class="form-group"><label for="edit_start_time">Start Time</label><input type="datetime-local" id="edit_start_time" required></div>
-                        <div class="form-group"><label for="edit_end_time">End Time</label><input type="datetime-local" id="edit_end_time" required></div>
+                <div class="modal-header">
+                    <h3>Add New Shift</h3>
+                    <button id="close-shift-modal" class="modal-close">&times;</button>
+                </div>
+                <form id="add-shift-form" class="modal-body">
+                    <div class="form-group">
+                        <label for="shift-name">Shift Name</label>
+                        <input type="text" id="shift-name" class="form-control" placeholder="e.g. Load In, Show Call" required>
                     </div>
-                    <hr style="margin: 1.5rem 0; border-color: var(--border-color);">
-                    <h4>Roles</h4>
-                    <div id="edit-roles-container"></div>
-                    <button type="button" id="edit-add-role-btn" class="btn btn-secondary" style="margin-top: 1rem;">+ Add Another Role</button>
-                    <div class="form-actions" style="text-align: right; margin-top: 1.5rem;"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+                    
+                    <div class="form-group">
+                        <label for="shift-role">Role</label>
+                        <input type="text" id="shift-role" list="roles-list" class="form-control" placeholder="Select or type a new role" required>
+                        <datalist id="roles-list">
+                            </datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="shift-start">Start Time</label>
+                        <input type="datetime-local" id="shift-start" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="shift-end">End Time</label>
+                        <input type="datetime-local" id="shift-end" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="shift-qty">Quantity Needed</label>
+                        <input type="number" id="shift-qty" class="form-control" value="1" min="1" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Create Shift</button>
+                    </div>
                 </form>
             </div>
         </div>
+
+        <div id="assign-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Assign Employee</h3>
+                    <button id="close-assign-modal" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="assign-shift-id">
+                    <div class="form-group">
+                        <label>Search Employee</label>
+                        <input type="text" id="employee-search" class="form-control" placeholder="Start typing name...">
+                    </div>
+                    <ul id="employee-list" class="selection-list">
+                        </ul>
+                </div>
+            </div>
+        </div>
     </main>
+    
     <script type="module" src="/logout.js"></script>
     <script type="module" src="/project-details.js"></script>
 </body>
