@@ -31,7 +31,7 @@
         /* Styles for the Dynamic Shift Rows */
         .shift-role-row {
             display: grid; 
-            grid-template-columns: 2fr 2fr 1fr 30px; 
+            grid-template-columns: 3fr 1fr 30px; /* Role, Qty, Delete */
             gap: 10px; 
             align-items: end; 
             margin-bottom: 10px; 
@@ -41,6 +41,10 @@
         .shift-role-row:last-child { border-bottom: none; }
         .shift-role-row label { font-size: 0.8rem; color: #666; margin-bottom: 2px; display: block;}
         .remove-row-btn { color: var(--status-red); font-size: 1.2rem; cursor: pointer; border: none; background: none; padding-bottom: 8px; }
+        
+        /* Modal Section Styling */
+        .modal-section { background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #eee; }
+        .modal-section h4 { margin-top: 0; margin-bottom: 10px; font-size: 0.9rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
     </style>
 </head>
 <body>
@@ -105,19 +109,39 @@
             <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header"><h3>Add New Shift</h3><button id="close-shift-modal" class="modal-close">×</button></div>
                 <form id="add-shift-form" class="modal-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; background: #f9f9f9; padding: 10px; border-radius: 6px;">
-                        <div class="form-group" style="margin:0"><label for="shift-start">Start Time</label><input type="datetime-local" id="shift-start" class="form-control" required></div>
-                        <div class="form-group" style="margin:0"><label for="shift-end">End Time</label><input type="datetime-local" id="shift-end" class="form-control" required></div>
-                    </div>
-
-                    <datalist id="roles-list"></datalist>
-
-                    <label style="font-weight:bold; margin-bottom:10px; display:block;">Roles Needed</label>
-                    <div id="shift-roles-container">
+                    
+                    <div class="modal-section">
+                        <h4>Shift Details</h4>
+                        <div class="form-group">
+                            <label for="shift-name">Shift Name</label>
+                            <input type="text" id="shift-name" class="form-control" placeholder="e.g. Load In, Show Call" required>
                         </div>
 
-                    <button type="button" id="add-role-row-btn" class="btn btn-sm btn-secondary" style="margin-bottom: 20px;">+ Add Another Role</button>
-                    
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group">
+                                <label for="shift-start">Start Time</label>
+                                <input type="datetime-local" id="shift-start" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="shift-end">End Time</label>
+                                <input type="datetime-local" id="shift-end" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="shift-dress">Dress Code</label>
+                            <input type="text" id="shift-dress" class="form-control" placeholder="e.g. Show Blacks, Casual">
+                        </div>
+                    </div>
+
+                    <div class="modal-section">
+                        <h4>Roles Needed</h4>
+                        <datalist id="roles-list"></datalist> <div id="shift-roles-container">
+                            </div>
+
+                        <button type="button" id="add-role-row-btn" class="btn btn-sm btn-secondary" style="margin-top: 10px;">+ Add Another Role</button>
+                    </div>
+
                     <div class="form-actions"><button type="submit" class="btn btn-primary">Create Shifts</button></div>
                 </form>
             </div>

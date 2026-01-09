@@ -147,17 +147,12 @@ function addRoleRow() {
             <input type="text" class="form-control role-input" list="roles-list" placeholder="e.g. Audio A1" required>
         </div>
         <div>
-            <label>Dress Code</label>
-            <input type="text" class="form-control dress-input" placeholder="e.g. Show Blacks">
-        </div>
-        <div>
             <label>Qty</label>
             <input type="number" class="form-control qty-input" value="1" min="1" required>
         </div>
         <button type="button" class="remove-row-btn" title="Remove Row">×</button>
     `;
     
-    // Remove handler
     div.querySelector('.remove-row-btn').onclick = () => div.remove();
     rolesContainer.appendChild(div);
 }
@@ -165,7 +160,7 @@ function addRoleRow() {
 document.getElementById('add-role-row-btn').onclick = addRoleRow;
 
 document.getElementById('add-shift-btn').onclick = () => {
-    // Pre-fill Start/End dates
+    // Pre-fill Start/End dates based on project start
     if (currentProject.start_date) {
         const iso = new Date(currentProject.start_date).toISOString().slice(0, 16);
         document.getElementById('shift-start').value = iso;
@@ -181,17 +176,19 @@ document.getElementById('close-shift-modal').onclick = () => addShiftModal.style
 addShiftForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // 1. Get GLOBAL Shift Details
+    const shiftName = document.getElementById('shift-name').value;
     const startTime = document.getElementById('shift-start').value;
     const endTime = document.getElementById('shift-end').value;
+    const dressCode = document.getElementById('shift-dress').value;
     
-    // Collect all rows
+    // 2. Collect all roles
     const rows = document.querySelectorAll('.shift-role-row');
     const shiftsToInsert = [];
 
     // Helper to check/create roles
     for (const row of rows) {
         const roleName = row.querySelector('.role-input').value.trim();
-        const dressCode = row.querySelector('.dress-input').value.trim();
         const qty = row.querySelector('.qty-input').value;
 
         // Check if role exists
@@ -204,12 +201,12 @@ addShiftForm.addEventListener('submit', async (e) => {
         
         shiftsToInsert.push({
             project_id: projectId,
-            name: 'Shift', // Generic name, or you could add a Name input back if you want distinct names per row
-            role: roleName,
-            dress_code: dressCode,
-            start_time: startTime,
-            end_time: endTime,
-            quantity_needed: qty
+            name: shiftName,        // Global Name
+            start_time: startTime,  // Global Start
+            end_time: endTime,      // Global End
+            dress_code: dressCode,  // Global Dress Code
+            role: roleName,         // Per-Row Role
+            quantity_needed: qty    // Per-Row Qty
         });
     }
 
