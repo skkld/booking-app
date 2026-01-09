@@ -22,7 +22,22 @@
         .crew-contact { font-size: 0.8rem; color: #aaa; }
         .btn-icon { background: none; border: none; cursor: pointer; color: #999; font-size: 1.1rem; }
         .btn-icon:hover { color: var(--status-red); }
-        .add-assign-btn { width: 100%; margin-top: 10px; border: 1px dashed #555; color: var(--primary-color); background: transparent;}
+        
+        /* UPDATED: Primary Purple Button for Assigning */
+        .add-assign-btn { 
+            width: 100%; 
+            margin-top: 10px; 
+            background-color: var(--primary-color); 
+            color: white; 
+            border: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .add-assign-btn:hover {
+            background-color: var(--primary-hover);
+        }
         
         /* Map Container */
         .map-container {
@@ -33,7 +48,7 @@
         /* Dynamic Shift Row Styles */
         .shift-role-row {
             display: grid; 
-            grid-template-columns: 3fr 1fr 30px; /* Role, Qty, Delete */
+            grid-template-columns: 3fr 1fr 30px; 
             gap: 10px; 
             align-items: end; 
             margin-bottom: 10px; 
@@ -44,47 +59,28 @@
         .shift-role-row label { font-size: 0.8rem; color: #aaa; margin-bottom: 2px; display: block;}
         .remove-row-btn { color: var(--status-red); font-size: 1.2rem; cursor: pointer; border: none; background: none; padding-bottom: 8px; }
         
-        /* Modal Theme Overrides for Dark Mode */
-        .modal-content {
-            background-color: var(--card-bg, #1e1e1e); 
-            color: #fff;
-            border: 1px solid #444;
-        }
-        
-        /* Inner Sections of Modal */
-        .modal-section { 
-            background: rgba(255, 255, 255, 0.05); 
-            padding: 15px; 
-            border-radius: 6px; 
-            margin-bottom: 15px; 
-            border: 1px solid #333; 
-        }
-        .modal-section h4 { 
-            margin-top: 0; 
-            margin-bottom: 10px; 
-            font-size: 0.9rem; 
-            color: #ccc; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-        }
+        /* Modal Theme Overrides */
+        .modal-content { background-color: var(--card-bg, #1e1e1e); color: #fff; border: 1px solid #444; }
+        .modal-section { background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #333; }
+        .modal-section h4 { margin-top: 0; margin-bottom: 10px; font-size: 0.9rem; color: #ccc; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-control { background-color: #2a2a2a; color: #fff; border: 1px solid #555; }
+        .form-control:focus { background-color: #333; border-color: var(--primary-color); color: #fff; }
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
-        /* Input Overrides */
-        .form-control {
-            background-color: #2a2a2a;
-            color: #fff;
-            border: 1px solid #555;
-        }
-        .form-control:focus {
-            background-color: #333;
-            border-color: var(--primary-color);
-            color: #fff;
-        }
-
-        /* Fix Calendar Icon Visibility in Dark Mode */
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
+        /* Employee Selection List */
+        .selection-list li {
+            padding: 10px;
+            border-bottom: 1px solid #333;
             cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        .selection-list li:hover { background-color: #333; }
+        .status-badge { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
+        .badge-available { background-color: rgba(40, 167, 69, 0.2); color: #28a745; }
+        .badge-pending { background-color: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .badge-none { background-color: rgba(255, 255, 255, 0.1); color: #999; }
     </style>
 </head>
 <body>
@@ -105,7 +101,7 @@
         <header class="header">
             <h1 id="project-name">Loading...</h1>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="window.location.href='/projects.html'">Back to Projects</button>
+                <button id="request-avail-btn" class="btn btn-secondary">Request Availability</button>
                 <button id="add-shift-btn" class="btn btn-primary">+ Add Shift</button>
             </div>
         </header>
@@ -113,7 +109,10 @@
         <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
             <div>
                 <section class="project-info-card card">
-                    <div class="card-header"><h3>Project Information</h3></div>
+                    <div class="card-header">
+                        <h3>Project Information</h3>
+                        <button class="btn btn-sm btn-secondary" onclick="window.location.href='/projects.html'">Back</button>
+                    </div>
                     <div class="card-body">
                         <div class="info-grid">
                             <div class="info-item"><label>Client:</label><span id="p-client">-</span></div>
@@ -149,39 +148,21 @@
             <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header"><h3>Add New Shift</h3><button id="close-shift-modal" class="modal-close">×</button></div>
                 <form id="add-shift-form" class="modal-body">
-                    
                     <div class="modal-section">
                         <h4>Shift Details</h4>
-                        <div class="form-group">
-                            <label for="shift-name">Shift Name</label>
-                            <input type="text" id="shift-name" class="form-control" placeholder="e.g. Load In, Show Call" required>
-                        </div>
-
+                        <div class="form-group"><label for="shift-name">Shift Name</label><input type="text" id="shift-name" class="form-control" placeholder="e.g. Load In" required></div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div class="form-group">
-                                <label for="shift-start">Start Time</label>
-                                <input type="datetime-local" id="shift-start" class="form-control" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="shift-end">End Time</label>
-                                <input type="datetime-local" id="shift-end" class="form-control" required>
-                            </div>
+                            <div class="form-group"><label for="shift-start">Start Time</label><input type="datetime-local" id="shift-start" class="form-control" required></div>
+                            <div class="form-group"><label for="shift-end">End Time</label><input type="datetime-local" id="shift-end" class="form-control" required></div>
                         </div>
-
-                        <div class="form-group">
-                            <label for="shift-dress">Dress Code</label>
-                            <input type="text" id="shift-dress" class="form-control" placeholder="e.g. Show Blacks, Casual">
-                        </div>
+                        <div class="form-group"><label for="shift-dress">Dress Code</label><input type="text" id="shift-dress" class="form-control" placeholder="e.g. Show Blacks"></div>
                     </div>
-
                     <div class="modal-section">
                         <h4>Roles Needed</h4>
-                        <datalist id="roles-list"></datalist> <div id="shift-roles-container">
-                            </div>
-
+                        <datalist id="roles-list"></datalist>
+                        <div id="shift-roles-container"></div>
                         <button type="button" id="add-role-row-btn" class="btn btn-sm btn-primary" style="margin-top: 10px;">+ Add Another Role</button>
                     </div>
-
                     <div class="form-actions"><button type="submit" class="btn btn-primary">Create Shifts</button></div>
                 </form>
             </div>
@@ -192,8 +173,14 @@
                 <div class="modal-header"><h3>Assign Crew Member</h3><button id="close-assign-modal" class="modal-close">×</button></div>
                 <div class="modal-body">
                     <input type="hidden" id="assign-shift-id">
-                    <div class="form-group"><label>Search Employee</label><input type="text" id="employee-search" class="form-control" placeholder="Type name..."></div>
-                    <ul id="employee-list" class="selection-list"></ul>
+                    <div class="form-group">
+                        <label>Filter Crew</label>
+                        <input type="text" id="employee-search" class="form-control" placeholder="Type name to filter...">
+                    </div>
+                    <div style="margin-bottom: 10px; font-size: 0.85rem; color: #aaa;">
+                        <label><input type="checkbox" id="show-all-crew"> Show unavailable/unreplied crew</label>
+                    </div>
+                    <ul id="employee-list" class="selection-list" style="max-height: 300px; overflow-y: auto;"></ul>
                 </div>
             </div>
         </div>
