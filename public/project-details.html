@@ -8,43 +8,83 @@
     <link rel="stylesheet" href="/styles.css">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
+        /* Crew List Table Styles */
         .crew-list-header {
             display: grid; grid-template-columns: 2fr 3fr 50px;
             font-weight: bold; font-size: 0.85rem; color: var(--text-muted);
-            padding: 5px 10px; border-bottom: 1px solid #eee; margin-bottom: 5px;
+            padding: 5px 10px; border-bottom: 1px solid #333; margin-bottom: 5px;
         }
         .crew-list-item {
             display: grid; grid-template-columns: 2fr 3fr 50px;
-            align-items: center; padding: 8px 10px; border-bottom: 1px solid #f9f9f9; font-size: 0.9rem;
+            align-items: center; padding: 8px 10px; border-bottom: 1px solid #333; font-size: 0.9rem;
         }
         .crew-list-item:last-child { border-bottom: none; }
-        .crew-contact { font-size: 0.8rem; color: #666; }
+        .crew-contact { font-size: 0.8rem; color: #aaa; }
         .btn-icon { background: none; border: none; cursor: pointer; color: #999; font-size: 1.1rem; }
         .btn-icon:hover { color: var(--status-red); }
-        .add-assign-btn { width: 100%; margin-top: 10px; border: 1px dashed #ccc; color: var(--primary-color); }
+        .add-assign-btn { width: 100%; margin-top: 10px; border: 1px dashed #555; color: var(--primary-color); background: transparent;}
         
+        /* Map Container */
         .map-container {
-            width: 100%; height: 250px; background-color: #f0f0f0; border-radius: 8px; margin-top: 1.5rem; overflow: hidden; border: 1px solid #ddd;
+            width: 100%; height: 250px; background-color: #222; border-radius: 8px; margin-top: 1.5rem; overflow: hidden; border: 1px solid #444;
         }
         .map-container iframe { width: 100%; height: 100%; border: 0; }
 
-        /* Styles for the Dynamic Shift Rows */
+        /* Dynamic Shift Row Styles */
         .shift-role-row {
             display: grid; 
             grid-template-columns: 3fr 1fr 30px; /* Role, Qty, Delete */
             gap: 10px; 
             align-items: end; 
             margin-bottom: 10px; 
-            border-bottom: 1px solid #f0f0f0; 
+            border-bottom: 1px solid #444; 
             padding-bottom: 10px;
         }
         .shift-role-row:last-child { border-bottom: none; }
-        .shift-role-row label { font-size: 0.8rem; color: #666; margin-bottom: 2px; display: block;}
+        .shift-role-row label { font-size: 0.8rem; color: #aaa; margin-bottom: 2px; display: block;}
         .remove-row-btn { color: var(--status-red); font-size: 1.2rem; cursor: pointer; border: none; background: none; padding-bottom: 8px; }
         
-        /* Modal Section Styling */
-        .modal-section { background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #eee; }
-        .modal-section h4 { margin-top: 0; margin-bottom: 10px; font-size: 0.9rem; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* Modal Theme Overrides for Dark Mode */
+        .modal-content {
+            background-color: var(--card-bg, #1e1e1e); 
+            color: #fff;
+            border: 1px solid #444;
+        }
+        
+        /* Inner Sections of Modal */
+        .modal-section { 
+            background: rgba(255, 255, 255, 0.05); 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 15px; 
+            border: 1px solid #333; 
+        }
+        .modal-section h4 { 
+            margin-top: 0; 
+            margin-bottom: 10px; 
+            font-size: 0.9rem; 
+            color: #ccc; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+        }
+
+        /* Input Overrides */
+        .form-control {
+            background-color: #2a2a2a;
+            color: #fff;
+            border: 1px solid #555;
+        }
+        .form-control:focus {
+            background-color: #333;
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+
+        /* Fix Calendar Icon Visibility in Dark Mode */
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -97,7 +137,7 @@
             <div class="card">
                 <div class="card-header"><h3>Location Map</h3></div>
                 <div class="card-body">
-                    <p id="map-address-text" style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;"></p>
+                    <p id="map-address-text" style="font-size: 0.9rem; color: #aaa; margin-bottom: 0.5rem;"></p>
                     <div id="google-map-embed" class="map-container">
                         <p style="text-align:center; padding-top:100px; color:#999;">Map loading...</p>
                     </div>
@@ -139,7 +179,7 @@
                         <datalist id="roles-list"></datalist> <div id="shift-roles-container">
                             </div>
 
-                        <button type="button" id="add-role-row-btn" class="btn btn-sm btn-secondary" style="margin-top: 10px;">+ Add Another Role</button>
+                        <button type="button" id="add-role-row-btn" class="btn btn-sm btn-primary" style="margin-top: 10px;">+ Add Another Role</button>
                     </div>
 
                     <div class="form-actions"><button type="submit" class="btn btn-primary">Create Shifts</button></div>
