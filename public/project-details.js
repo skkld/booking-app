@@ -23,6 +23,12 @@ function renderHeaderInfo() {
     document.getElementById('p-notes').textContent = currentProject.project_notes || '-';
     document.getElementById('p-status').textContent = (currentProject.status || 'Active').toUpperCase();
     document.getElementById('p-union').textContent = currentProject.is_union_project ? 'Yes' : 'No';
+    
+    // --- NEW FIELDS RENDERED HERE ---
+    document.getElementById('p-contact').textContent = currentProject.on_site_contact || '-';
+    document.getElementById('p-dress').textContent = currentProject.dress_code || '-';
+    document.getElementById('p-parking').textContent = currentProject.parking_instructions || '-';
+
     const start = currentProject.start_date ? new Date(currentProject.start_date).toLocaleDateString() : 'TBD';
     const end = currentProject.end_date ? new Date(currentProject.end_date).toLocaleDateString() : '';
     document.getElementById('p-dates').textContent = end ? `${start} - ${end}` : start;
@@ -33,7 +39,6 @@ function renderHeaderInfo() {
     
     if (currentProject.venue_address) {
         addressText.textContent = currentProject.venue_address;
-        // Simple Google Maps Embed using the address
         const encodedAddr = encodeURIComponent(currentProject.venue_address);
         mapContainer.innerHTML = `
             <iframe 
@@ -109,7 +114,7 @@ function createShiftCard(shift) {
             html += `<div class="crew-list-item">
                 <div style="font-weight:500;">${emp.full_name || 'Unknown'}</div>
                 <div class="crew-contact">${contact || '-'}</div>
-                <div style="text-align:right;"><button class="btn-icon" onclick="removeAssignment('${a.id}')">&times;</button></div>
+                <div style="text-align:right;"><button class="btn-icon" onclick="removeAssignment('${a.id}')">×</button></div>
             </div>`;
         });
     }
@@ -124,7 +129,6 @@ function createShiftCard(shift) {
     return div;
 }
 
-// Modal Logic
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
 document.getElementById('add-shift-btn').onclick = () => {
@@ -152,7 +156,6 @@ addShiftForm.addEventListener('submit', async (e) => {
     if (error) alert(error.message); else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
 });
 
-// Assign Logic
 const assignModal = document.getElementById('assign-modal');
 const empList = document.getElementById('employee-list');
 let targetShiftId = null;
