@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script type="module" src="/auth.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create New Project</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script type="module" src="/auth.js"></script>
+    
     <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <nav class="sidebar">
@@ -17,12 +17,14 @@
             <span>Booking App</span>
         </div>
         <ul class="sidebar-nav">
-             <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li></ul></nav><script type="module" src="/logout.js"></script>
             <li class="nav-item"><a href="/" class="nav-link">Dashboard</a></li>
-            <li class="nav-item"><a href="/projects.html" class="nav-link"><span class="icon">&#128197;Projects</a></li>
+            <li class="nav-item"><a href="/projects.html" class="nav-link active">Projects</a></li>
+            <li class="nav-item"><a href="/scheduling.html" class="nav-link">Scheduling</a></li>
             <li class="nav-item"><a href="/employees.html" class="nav-link">Employees</a></li>
+            <li class="nav-item"><a href="/timesheets.html" class="nav-link">Timesheets</a></li>
             <li class="nav-item"><a href="/timecards.html" class="nav-link">Timecards</a></li>
-            <li class="nav-item"><a href="#" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="/settings.html" class="nav-link">Settings</a></li>
+            <li class="nav-item"><a href="#" id="logout-btn" class="nav-link">Log Out</a></li>
         </ul>
     </nav>
 
@@ -31,67 +33,53 @@
             <h1>Create New Project</h1>
         </header>
 
-        <form id="create-project-form" class="card-body">
-            <div class="card">
-                <div class="card-header"><h3>Project Details</h3></div>
-                <div class="card-body form-grid form-grid-2-col">
+        <div class="card">
+            <form id="create-project-form">
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="name">Project Name</label>
-                        <input type="text" id="name" name="name" required>
+                        <label for="project-name">Project Name</label>
+                        <input type="text" id="project-name" class="form-control" placeholder="e.g. Summer Festival 2024" required>
                     </div>
+                    
                     <div class="form-group">
-                        <label for="client_name">Client Name</label>
-                        <input type="text" id="client_name" name="client_name">
+                        <label for="client-name">Client Name</label>
+                        <input type="text" id="client-name" class="form-control" placeholder="e.g. Acme Corp" required>
                     </div>
+
                     <div class="form-group">
-                        <label for="start_date">Start Date & Time</label>
-                        <input type="datetime-local" id="start_date" name="start_date" required>
+                        <label for="start-date">Start Date</label>
+                        <input type="date" id="start-date" class="form-control" required>
                     </div>
+
                     <div class="form-group">
-                        <label for="end_date">End Date & Time</label>
-                        <input type="datetime-local" id="end_date" name="end_date" required>
+                        <label for="project-status">Status</label>
+                        <select id="project-status" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="completed">Completed</option>
+                        </select>
                     </div>
-                    <div class="form-group">
-                        <label for="venue_address">Venue Address</label>
-                        <input type="text" id="venue_address" name="venue_address">
-                    </div>
-                    <div class="form-group">
-                        <label for="on_site_contact">On-site Contact</label>
-                        <input type="text" id="on_site_contact" name="on_site_contact">
-                    </div>
-                    <div class="form-group">
-                        <label for="dress_code">Dress Code</label>
-                        <input type="text" id="dress_code" name="dress_code">
-                    </div>
-                    <div class="form-group">
-                        <label for="parking_instructions">Parking Instructions</label>
-                        <input type="text" id="parking_instructions" name="parking_instructions">
-                    </div>
-                    <div class="form-group-checkbox" style="grid-column: 1 / -1;">
-                        <input type="checkbox" id="is_union_project" name="is_union_project">
-                        <label for="is_union_project">This is a Union Project</label>
+                    
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>
+                            <input type="checkbox" id="is-union-project"> 
+                            Is this a Union Project?
+                        </label>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            If checked, payroll calculations will use Union Rules (overtime, meal penalties, etc.) instead of Company Rules.
+                        </p>
                     </div>
                 </div>
-            </div>
 
-            <div class="card">
-                <div class="card-header"><h3>Project Notes</h3></div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <textarea id="project_notes" name="project_notes"></textarea>
-                    </div>
+                <div class="form-actions">
+                    <a href="/projects.html" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
                 </div>
-            </div>
-
-            <div class="form-actions" style="margin-top: 1.5rem;">
-                <button type="submit" class="btn btn-primary">Create Project</button>
-            </div>
-            <input type="hidden" name="timezone" id="timezone">
-        </form>
-        </main>
-    <script type="module" src="/create-project.js"></script>
-</main> <script type="module" src="/logout.js"></script>
+            </form>
+        </div>
+    </main>
     
-    <script type="module" src="/dashboard.js"></script>
+    <script type="module" src="/logout.js"></script>
+    <script type="module" src="/create-project.js"></script>
 </body>
 </html>
