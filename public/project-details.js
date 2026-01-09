@@ -2,32 +2,14 @@ import { _supabase } from './auth.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const projectId = urlParams.get('id');
-
 let currentProject = null;
 let allEmployees = [];
 let allPositions = [];
 
-// --- 1. Load Everything ---
 async function loadProjectDetails() {
-    if (!projectId) {
-        alert("No project ID provided.");
-        window.location.href = '/projects.html';
-        return;
-    }
-
-    // A. Fetch Project
-    const { data: project, error } = await _supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-    if (error || !project) {
-        console.error('Error fetching project:', error);
-        document.body.innerHTML = '<h1>Project not found</h1>';
-        return;
-    }
-
+    if (!projectId) return window.location.href = '/projects.html';
+    const { data: project } = await _supabase.from('projects').select('*').eq('id', projectId).single();
+    if (!project) return document.body.innerHTML = '<h1>Project not found</h1>';
     currentProject = project;
     renderHeaderInfo();
     loadShifts();
@@ -41,10 +23,34 @@ function renderHeaderInfo() {
     document.getElementById('p-notes').textContent = currentProject.project_notes || '-';
     document.getElementById('p-status').textContent = (currentProject.status || 'Active').toUpperCase();
     document.getElementById('p-union').textContent = currentProject.is_union_project ? 'Yes' : 'No';
-    
     const start = currentProject.start_date ? new Date(currentProject.start_date).toLocaleDateString() : 'TBD';
     const end = currentProject.end_date ? new Date(currentProject.end_date).toLocaleDateString() : '';
     document.getElementById('p-dates').textContent = end ? `${start} - ${end}` : start;
+
+    // --- Render Map ---
+    const mapContainer = document.getElementById('google-map-embed');
+    const addressText = document.getElementById('map-address-text');
+    
+    if (currentProject.venue_address) {
+        addressText.textContent = currentProject.venue_address;
+        // Simple Google Maps Embed using the address
+        const encodedAddr = encodeURIComponent(currentProject.venue_address);
+        mapContainer.innerHTML = `
+            <iframe 
+                width="100%" 
+                height="100%" 
+                frameborder="0" 
+                style="border:0" 
+                loading="lazy" 
+                allowfullscreen 
+                referrerpolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps?q=${encodedAddr}&output=embed">
+            </iframe>
+        `;
+    } else {
+        addressText.textContent = "No address provided.";
+        mapContainer.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#999;">No location data</div>`;
+    }
 }
 
 async function loadPositions() {
@@ -54,60 +60,29 @@ async function loadPositions() {
         const datalist = document.getElementById('roles-list');
         datalist.innerHTML = '';
         data.forEach(pos => {
-            const option = document.createElement('option');
-            option.value = pos.name;
-            datalist.appendChild(option);
+            const op = document.createElement('option');
+            op.value = pos.name;
+            datalist.appendChild(op);
         });
     }
 }
 
-// --- 4. Load Shifts & Assignments (With Contact Info) ---
 async function loadShifts() {
     const container = document.getElementById('shifts-container');
     container.innerHTML = '<p>Loading shifts...</p>';
+    const { data: shifts, error } = await _supabase.from('shifts')
+        .select(`*, assignments(id, status, employees(id, full_name, email, phone))`)
+        .eq('project_id', projectId).order('start_time', { ascending: true });
 
-    // Fetch shifts + assignments + employee details (phone/email)
-    const { data: shifts, error } = await _supabase
-        .from('shifts')
-        .select(`
-            *,
-            assignments (
-                id,
-                status,
-                employees (
-                    id, 
-                    full_name,
-                    email,
-                    phone
-                )
-            )
-        `)
-        .eq('project_id', projectId)
-        .order('start_time', { ascending: true });
-
-    if (error) {
-        console.error("Supabase Error:", error);
-        container.innerHTML = `<p>Error loading shifts: ${error.message}</p>`;
-        return;
-    }
-
+    if (error) { console.error(error); container.innerHTML = '<p>Error loading shifts.</p>'; return; }
     container.innerHTML = '';
-    if (!shifts || shifts.length === 0) {
-        container.innerHTML = '<p>No shifts created yet.</p>';
-        return;
-    }
-
-    shifts.forEach(shift => {
-        container.appendChild(createShiftCard(shift));
-    });
+    if (!shifts || shifts.length === 0) return container.innerHTML = '<p>No shifts created yet.</p>';
+    shifts.forEach(shift => container.appendChild(createShiftCard(shift)));
 }
 
 function createShiftCard(shift) {
     const start = new Date(shift.start_time);
     const end = new Date(shift.end_time);
-    const dateStr = start.toLocaleDateString();
-    const timeStr = `${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-
     const filled = shift.assignments ? shift.assignments.length : 0;
     const total = shift.quantity_needed;
     const statusClass = filled >= total ? 'status-green' : (filled > 0 ? 'status-yellow' : '');
@@ -115,183 +90,93 @@ function createShiftCard(shift) {
     const div = document.createElement('div');
     div.className = `shift-card ${statusClass}`;
     
-    // Header Section
     let html = `
         <div class="shift-header">
-            <div>
-                <h4>${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#666;">(${shift.role})</span></h4>
-                <div class="shift-time">${dateStr} | ${timeStr}</div>
-            </div>
-            <div class="shift-meta">
-                ${filled} / ${total} Filled
-            </div>
-        </div>
-    `;
+            <div><h4>${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#666;">(${shift.role})</span></h4>
+            <div class="shift-time">${start.toLocaleDateString()} | ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>
+            <div class="shift-meta">${filled} / ${total} Filled</div>
+        </div>`;
 
-    // Crew List Section (Table Header)
     if (shift.assignments && shift.assignments.length > 0) {
-        html += `
-            <div class="crew-list-header">
-                <div>Crew Member</div>
-                <div>Contact</div>
-                <div style="text-align:right">Action</div>
-            </div>
-        `;
+        html += `<div class="crew-list-header"><div>Crew Member</div><div>Contact</div><div style="text-align:right">Action</div></div>`;
     }
 
-    // Crew List Items
     html += `<div class="assignments-list">`;
     if (shift.assignments) {
         shift.assignments.forEach(a => {
             const emp = a.employees || {};
-            const contactInfo = [emp.email, emp.phone].filter(Boolean).join('<br>');
-            
-            html += `
-                <div class="crew-list-item">
-                    <div style="font-weight:500;">${emp.full_name || 'Unknown'}</div>
-                    <div class="crew-contact">${contactInfo || '-'}</div>
-                    <div style="text-align:right;">
-                        <button class="btn-icon" title="Remove" onclick="removeAssignment('${a.id}')">&times;</button>
-                    </div>
-                </div>
-            `;
+            const contact = [emp.email, emp.phone].filter(Boolean).join('<br>');
+            html += `<div class="crew-list-item">
+                <div style="font-weight:500;">${emp.full_name || 'Unknown'}</div>
+                <div class="crew-contact">${contact || '-'}</div>
+                <div style="text-align:right;"><button class="btn-icon" onclick="removeAssignment('${a.id}')">&times;</button></div>
+            </div>`;
         });
     }
-
-    // "Assign" Button (Infill)
-    if (filled < total) {
-        html += `<button class="btn btn-sm add-assign-btn" onclick="openAssignModal('${shift.id}')">+ Assign Crew to Open Slot</button>`;
-    }
-
-    html += `</div>`; // Close assignments-list
-
-    // Footer Links
-    html += `
+    
+    if (filled < total) html += `<button class="btn btn-sm add-assign-btn" onclick="openAssignModal('${shift.id}')">+ Assign Crew to Open Slot</button>`;
+    html += `</div>
         <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px; text-align:right;">
             <a href="/timesheet-entry.html?shift_id=${shift.id}" class="btn btn-sm btn-secondary">Enter Times</a>
-        </div>
-    `;
-
+        </div>`;
+    
     div.innerHTML = html;
     return div;
 }
 
-// --- Modals Logic ---
+// Modal Logic
 const addShiftModal = document.getElementById('add-shift-modal');
-const addShiftBtn = document.getElementById('add-shift-btn');
-const closeShiftBtn = document.getElementById('close-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
-
-addShiftBtn.onclick = () => {
+document.getElementById('add-shift-btn').onclick = () => {
     if (currentProject.start_date) {
-        const isoStart = new Date(currentProject.start_date).toISOString().slice(0, 16);
-        document.getElementById('shift-start').value = isoStart;
-        document.getElementById('shift-end').value = isoStart;
+        const iso = new Date(currentProject.start_date).toISOString().slice(0, 16);
+        document.getElementById('shift-start').value = iso;
+        document.getElementById('shift-end').value = iso;
     }
     addShiftModal.style.display = 'flex';
 };
-closeShiftBtn.onclick = () => addShiftModal.style.display = 'none';
+document.getElementById('close-shift-modal').onclick = () => addShiftModal.style.display = 'none';
 
 addShiftForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('shift-name').value;
     const roleInput = document.getElementById('shift-role').value;
-    const start = document.getElementById('shift-start').value;
-    const end = document.getElementById('shift-end').value;
-    const qty = document.getElementById('shift-qty').value;
-
-    const existingRole = allPositions.find(p => p.name.toLowerCase() === roleInput.trim().toLowerCase());
-    if (!existingRole) {
-        const confirmCreate = confirm(`Role "${roleInput}" does not exist. Create it?`);
-        if (!confirmCreate) return;
-        await _supabase.from('positions').insert([{ name: roleInput.trim() }]);
-        await loadPositions();
-    }
+    const existing = allPositions.find(p => p.name.toLowerCase() === roleInput.trim().toLowerCase());
+    if (!existing && !confirm(`Role "${roleInput}" is new. Create it?`)) return;
+    if (!existing) { await _supabase.from('positions').insert([{ name: roleInput.trim() }]); await loadPositions(); }
 
     const { error } = await _supabase.from('shifts').insert([{
-        project_id: projectId,
-        name: name,
-        role: roleInput.trim(),
-        start_time: start,
-        end_time: end,
-        quantity_needed: qty
+        project_id: projectId, name: document.getElementById('shift-name').value,
+        role: roleInput.trim(), start_time: document.getElementById('shift-start').value,
+        end_time: document.getElementById('shift-end').value, quantity_needed: document.getElementById('shift-qty').value
     }]);
-
-    if (error) alert('Error creating shift: ' + error.message);
-    else {
-        addShiftModal.style.display = 'none';
-        addShiftForm.reset();
-        loadShifts();
-    }
+    if (error) alert(error.message); else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
 });
 
+// Assign Logic
 const assignModal = document.getElementById('assign-modal');
-const closeAssignBtn = document.getElementById('close-assign-modal');
-const employeeSearch = document.getElementById('employee-search');
-const employeeList = document.getElementById('employee-list');
+const empList = document.getElementById('employee-list');
 let targetShiftId = null;
-
-// Global Window Functions for HTML Access
-window.openAssignModal = async (shiftId) => {
-    targetShiftId = shiftId;
-    assignModal.style.display = 'flex';
-    employeeSearch.value = '';
-    
-    // Fetch employees with contact info if not already loaded
-    if (allEmployees.length === 0) {
-        const { data } = await _supabase
-            .from('employees')
-            .select('id, full_name, email, phone')
-            .eq('status', 'active');
-        allEmployees = data || [];
-    }
-    renderEmployeeList(allEmployees);
+window.openAssignModal = async (sid) => {
+    targetShiftId = sid; assignModal.style.display = 'flex'; document.getElementById('employee-search').value='';
+    if (allEmployees.length === 0) { const { data } = await _supabase.from('employees').select('id, full_name, email, phone').eq('status', 'active'); allEmployees = data || []; }
+    renderEmp(allEmployees);
 };
-
-window.removeAssignment = async (assignId) => {
-    if(!confirm('Remove this crew member?')) return;
-    await _supabase.from('assignments').delete().eq('id', assignId);
-    loadShifts();
-};
-
-closeAssignBtn.onclick = () => assignModal.style.display = 'none';
-
-employeeSearch.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
-    const filtered = allEmployees.filter(emp => 
-        emp.full_name.toLowerCase().includes(term) || 
-        (emp.email && emp.email.toLowerCase().includes(term))
-    );
-    renderEmployeeList(filtered);
+document.getElementById('close-assign-modal').onclick = () => assignModal.style.display = 'none';
+document.getElementById('employee-search').addEventListener('input', (e) => {
+    renderEmp(allEmployees.filter(emp => emp.full_name.toLowerCase().includes(e.target.value.toLowerCase())));
 });
-
-function renderEmployeeList(employees) {
-    employeeList.innerHTML = '';
-    employees.forEach(emp => {
+function renderEmp(list) {
+    empList.innerHTML = '';
+    list.forEach(emp => {
         const li = document.createElement('li');
-        li.innerHTML = `
-            <strong>${emp.full_name}</strong>
-            <br><span style="font-size:0.8em; color:#666;">${emp.email || ''}</span>
-        `;
-        li.onclick = () => assignEmployee(emp.id);
-        employeeList.appendChild(li);
+        li.innerHTML = `<strong>${emp.full_name}</strong><br><span style="font-size:0.8em; color:#666">${emp.email||''}</span>`;
+        li.onclick = async () => {
+            const { error } = await _supabase.from('assignments').insert([{ shift_id: targetShiftId, employee_id: emp.id }]);
+            if (error) alert(error.message); else { assignModal.style.display = 'none'; loadShifts(); }
+        };
+        empList.appendChild(li);
     });
 }
-
-async function assignEmployee(employeeId) {
-    const { error } = await _supabase.from('assignments').insert([{
-        shift_id: targetShiftId,
-        employee_id: employeeId,
-        status: 'confirmed'
-    }]);
-
-    if (error) {
-        if (error.code === '23505') alert('Employee already assigned.');
-        else alert('Error: ' + error.message);
-    } else {
-        assignModal.style.display = 'none';
-        loadShifts();
-    }
-}
+window.removeAssignment = async (id) => { if(confirm('Remove crew?')) { await _supabase.from('assignments').delete().eq('id', id); loadShifts(); }};
 
 loadProjectDetails();
