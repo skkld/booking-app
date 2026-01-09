@@ -4,17 +4,14 @@ const urlParams = new URLSearchParams(window.location.search);
 const projectId = urlParams.get('id');
 let currentProject = null;
 let allEmployees = [];
-let availabilityMap = {}; // Maps employee_id -> status
+let availabilityMap = {}; 
 let allPositions = [];
 
 async function loadProjectDetails() {
     if (!projectId) return window.location.href = '/projects.html';
-    
-    // Fetch Project
     const { data: project } = await _supabase.from('projects').select('*').eq('id', projectId).single();
     if (!project) return document.body.innerHTML = '<h1>Project not found</h1>';
     currentProject = project;
-    
     renderHeaderInfo();
     loadShifts();
     loadPositions();
@@ -34,7 +31,6 @@ function renderHeaderInfo() {
     const end = currentProject.end_date ? new Date(currentProject.end_date).toLocaleDateString() : '';
     document.getElementById('p-dates').textContent = end ? `${start} - ${end}` : start;
 
-    // Map
     const mapContainer = document.getElementById('google-map-embed');
     const addressText = document.getElementById('map-address-text');
     if (currentProject.venue_address) {
@@ -84,12 +80,18 @@ function createShiftCard(shift) {
     const div = document.createElement('div');
     div.className = `shift-card ${statusClass}`;
     
+    // Store shift data in DOM for easy edit access
+    div.dataset.shiftJson = JSON.stringify(shift);
+
     const dressCodeDisplay = shift.dress_code ? `<div style="font-size:0.85em; color:#aaa; margin-top:4px;"><strong>Dress:</strong> ${shift.dress_code}</div>` : '';
 
     let html = `
         <div class="shift-header">
             <div>
-                <h4>${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#aaa;">(${shift.role})</span></h4>
+                <h4>
+                    ${shift.name} <span style="font-weight:normal; font-size:0.9em; color:#aaa;">(${shift.role})</span>
+                    <button class="btn-edit-icon" onclick="openEditShiftModal(this)" title="Edit Shift">&#9998;</button>
+                </h4>
                 ${dressCodeDisplay}
                 <div class="shift-time">${start.toLocaleDateString()} | ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
             </div>
@@ -113,7 +115,6 @@ function createShiftCard(shift) {
         });
     }
     
-    // UPDATED BUTTON CLASS: Uses Purple style now
     if (filled < total) html += `<button class="btn add-assign-btn" onclick="openAssignModal('${shift.id}')">+ Assign Crew to Open Slot</button>`;
     html += `</div>
         <div style="margin-top: 10px; border-top: 1px solid #444; padding-top: 5px; text-align:right;">
@@ -124,7 +125,7 @@ function createShiftCard(shift) {
     return div;
 }
 
-// --- SHIFT MODAL ---
+// --- SHIFT CREATION LOGIC ---
 const addShiftModal = document.getElementById('add-shift-modal');
 const addShiftForm = document.getElementById('add-shift-form');
 const rolesContainer = document.getElementById('shift-roles-container');
@@ -140,7 +141,6 @@ function addRoleRow() {
     div.querySelector('.remove-row-btn').onclick = () => div.remove();
     rolesContainer.appendChild(div);
 }
-
 document.getElementById('add-role-row-btn').onclick = addRoleRow;
 document.getElementById('add-shift-btn').onclick = () => {
     if (currentProject.start_date) {
@@ -172,58 +172,94 @@ addShiftForm.addEventListener('submit', async (e) => {
             if (!confirm(`Role "${roleName}" is new. Create it globally?`)) return;
             await _supabase.from('positions').insert([{ name: roleName }]);
         }
-        shiftsToInsert.push({
-            project_id: projectId, name: shiftName, start_time: startTime, end_time: endTime, dress_code: dressCode, role: roleName, quantity_needed: qty
-        });
+        shiftsToInsert.push({ project_id: projectId, name: shiftName, start_time: startTime, end_time: endTime, dress_code: dressCode, role: roleName, quantity_needed: qty });
     }
     await loadPositions();
     const { error } = await _supabase.from('shifts').insert(shiftsToInsert);
     if (error) alert(error.message); else { addShiftModal.style.display = 'none'; addShiftForm.reset(); loadShifts(); }
 });
 
-// --- ASSIGN MODAL & AVAILABILITY ---
+// --- EDIT SHIFT LOGIC (NEW) ---
+const editModal = document.getElementById('edit-shift-modal');
+const editForm = document.getElementById('edit-shift-form');
+
+// Helper to convert ISO string to datetime-local input format
+const toLocalIso = (dateStr) => {
+    const date = new Date(dateStr);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 16);
+};
+
+window.openEditShiftModal = (btn) => {
+    // Find parent card and get JSON data
+    const card = btn.closest('.shift-card');
+    const shift = JSON.parse(card.dataset.shiftJson);
+    
+    document.getElementById('edit-shift-id').value = shift.id;
+    document.getElementById('edit-name').value = shift.name;
+    document.getElementById('edit-role').value = shift.role;
+    document.getElementById('edit-dress').value = shift.dress_code || '';
+    document.getElementById('edit-start').value = toLocalIso(shift.start_time);
+    document.getElementById('edit-end').value = toLocalIso(shift.end_time);
+    document.getElementById('edit-qty').value = shift.quantity_needed;
+
+    editModal.style.display = 'flex';
+};
+
+document.getElementById('close-edit-modal').onclick = () => editModal.style.display = 'none';
+
+editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('edit-shift-id').value;
+    const updates = {
+        name: document.getElementById('edit-name').value,
+        role: document.getElementById('edit-role').value,
+        dress_code: document.getElementById('edit-dress').value,
+        start_time: document.getElementById('edit-start').value,
+        end_time: document.getElementById('edit-end').value,
+        quantity_needed: document.getElementById('edit-qty').value
+    };
+
+    const { error } = await _supabase.from('shifts').update(updates).eq('id', id);
+    if (error) alert('Error updating shift: ' + error.message);
+    else { editModal.style.display = 'none'; loadShifts(); }
+});
+
+document.getElementById('delete-shift-btn').onclick = async () => {
+    const id = document.getElementById('edit-shift-id').value;
+    if(!confirm("Are you sure you want to delete this shift? All assignments will be removed.")) return;
+    
+    const { error } = await _supabase.from('shifts').delete().eq('id', id);
+    if (error) alert('Error deleting shift: ' + error.message);
+    else { editModal.style.display = 'none'; loadShifts(); }
+};
+
+// --- ASSIGN LOGIC ---
 const assignModal = document.getElementById('assign-modal');
 const empList = document.getElementById('employee-list');
-let targetShiftId = null;
 
-// Request Availability Button
 document.getElementById('request-avail-btn').onclick = async () => {
     if(!confirm("Send availability request to ALL active employees for this project?")) return;
-    
-    // 1. Get all employees
     const { data: emps } = await _supabase.from('employees').select('id').eq('status', 'active');
     if(!emps) return;
-
-    // 2. Insert into project_availability
-    const inserts = emps.map(e => ({
-        project_id: projectId,
-        employee_id: e.id,
-        status: 'pending' // Default status
-    }));
-
+    const inserts = emps.map(e => ({ project_id: projectId, employee_id: e.id, status: 'pending' }));
     const { error } = await _supabase.from('project_availability').upsert(inserts, { onConflict: 'project_id, employee_id' });
-    if(error) alert('Error sending requests: ' + error.message);
-    else alert('Availability requests sent (simulated).');
+    if(error) alert('Error sending requests: ' + error.message); else alert('Availability requests sent (simulated).');
 };
 
 window.openAssignModal = async (sid) => {
     targetShiftId = sid; 
     assignModal.style.display = 'flex'; 
     document.getElementById('employee-search').value='';
-    document.getElementById('show-all-crew').checked = false; // Default: Only show available
+    document.getElementById('show-all-crew').checked = false; 
 
-    // Fetch Employees + Availability Status
     const [empRes, availRes] = await Promise.all([
         _supabase.from('employees').select('id, full_name, email').eq('status', 'active'),
         _supabase.from('project_availability').select('employee_id, status').eq('project_id', projectId)
     ]);
-
     allEmployees = empRes.data || [];
     availabilityMap = {};
-    if(availRes.data) {
-        availRes.data.forEach(a => availabilityMap[a.employee_id] = a.status);
-    }
-
+    if(availRes.data) availRes.data.forEach(a => availabilityMap[a.employee_id] = a.status);
     renderEmp();
 };
 
@@ -234,10 +270,8 @@ document.getElementById('show-all-crew').addEventListener('change', () => render
 function renderEmp() {
     const term = document.getElementById('employee-search').value.toLowerCase();
     const showAll = document.getElementById('show-all-crew').checked;
-
     empList.innerHTML = '';
     
-    // Sort: Available first, then pending, then others
     const sorted = [...allEmployees].sort((a, b) => {
         const statA = availabilityMap[a.id] || 'none';
         const statB = availabilityMap[b.id] || 'none';
@@ -247,46 +281,25 @@ function renderEmp() {
     });
 
     sorted.forEach(emp => {
-        // Search Filter
         if (!emp.full_name.toLowerCase().includes(term)) return;
-
         const status = availabilityMap[emp.id] || 'none';
-        
-        // Availability Filter (Unless Show All is checked)
         if (!showAll && status !== 'available') return;
 
         const li = document.createElement('li');
-        let badgeClass = 'badge-none';
-        let badgeText = 'No Reply';
-        
+        let badgeClass = 'badge-none'; let badgeText = 'No Reply';
         if(status === 'available') { badgeClass = 'badge-available'; badgeText = 'Available'; }
         else if(status === 'pending') { badgeClass = 'badge-pending'; badgeText = 'Pending'; }
         else if(status === 'unavailable') { badgeClass = 'badge-none'; badgeText = 'Unavailable'; }
 
-        li.innerHTML = `
-            <div>
-                <strong>${emp.full_name}</strong>
-                <br><span style="font-size:0.8em; color:#666">${emp.email||''}</span>
-            </div>
-            <span class="status-badge ${badgeClass}">${badgeText}</span>
-        `;
-        
+        li.innerHTML = `<div><strong>${emp.full_name}</strong><br><span style="font-size:0.8em; color:#666">${emp.email||''}</span></div><span class="status-badge ${badgeClass}">${badgeText}</span>`;
         li.onclick = async () => {
             const { error } = await _supabase.from('assignments').insert([{ shift_id: targetShiftId, employee_id: emp.id }]);
-            if (error) {
-                if(error.code === '23505') alert('Already assigned');
-                else alert(error.message);
-            } else { 
-                assignModal.style.display = 'none'; 
-                loadShifts(); 
-            }
+            if (error) { if(error.code === '23505') alert('Already assigned'); else alert(error.message); } 
+            else { assignModal.style.display = 'none'; loadShifts(); }
         };
         empList.appendChild(li);
     });
-
-    if(empList.children.length === 0) {
-        empList.innerHTML = '<li style="color:#777; cursor:default;">No crew found matching criteria.</li>';
-    }
+    if(empList.children.length === 0) empList.innerHTML = '<li style="color:#777; cursor:default;">No crew found matching criteria.</li>';
 }
 
 window.removeAssignment = async (id) => { if(confirm('Remove crew?')) { await _supabase.from('assignments').delete().eq('id', id); loadShifts(); }};
